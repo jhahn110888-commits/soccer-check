@@ -41,8 +41,7 @@ with st.sidebar:
         authenticator.logout("로그아웃", "sidebar")
     elif authentication_status == False:
         st.error("비밀번호가 틀렸습니다.")
-    else:
-        st.info("관리자 ID: master / PW: dfit2026")
+
 
 # --- 3. 디자인 및 API 설정 ---
 st.markdown("""
