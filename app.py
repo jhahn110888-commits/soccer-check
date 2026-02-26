@@ -18,7 +18,7 @@ st.markdown("""
 # --- API 설정 ---
 API_URL = "https://script.google.com/macros/s/AKfycbzYMf0rfazFlzLrGuzq6o4QH37Dgpp3p_7M91yNykTjuEN9C7sbYwWIrKKWj6P9LB4A/exec"
 
-st.title("⚽ D'fit 운영 시스템")
+st.title("⚽ D'fit")
 
 # 1. 일정 및 인원 제한 설정
 MATCH_CONFIG = {
