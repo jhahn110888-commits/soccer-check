@@ -201,7 +201,7 @@ with tab2:
         with c1:
             if s_name not in available and s_name in confirmed_players: available.append(s_name)
             idx = available.index(s_name) if s_name in available else 0
-            sel_n = st.selectbox(f"{label} 이름", available, index=idx, key=f"{key_prefix}_name")
+            sel_n = st.selectbox(f"{label}", available, index=idx, key=f"{key_prefix}_name")
         with c2:
             r_idx = options.index(s_role) if s_role in options else 0
             sel_r = st.selectbox(f"{label}", options, index=r_idx, key=f"{key_prefix}_role")
