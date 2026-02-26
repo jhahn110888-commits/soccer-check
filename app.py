@@ -17,7 +17,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- API 설정 (본인의 구글 앱 스크립트 URL을 입력하세요) ---
-API_URL = "https://script.google.com/macros/s/AKfycbzyMz75oWHac-WiRPhuJFmFgQqRuKiqERx3PJ7JBPh5mZKKPIuI566lM8rBEjAXvJyOHw/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbzYMf0rfazFlzLrGuzq6o4QH37Dgpp3p_7M91yNykTjuEN9C7sbYwWIrKKWj6P9LB4A/exec"
 
 st.title("⚽ FC DGIST 운영 시스템")
 
