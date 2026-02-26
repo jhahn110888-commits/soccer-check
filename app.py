@@ -37,7 +37,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 재환님의 구글 앱스 스크립트 API URL
-API_URL = "https://script.google.com/macros/s/AKfycbzYMf0rfazFlzLrGuzq6o4QH37Dgpp3p_7M91yNykTjuEN9C7sbYwWIrKKWj6P9LB4A/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbwyAWhVK4KGk0GJcNz1GJt1RzudRmRgf0SK_pADPZ3NrmLiree0p9WRZb5ZhHf0aema/exec"
 
 # 경기 일정 설정
 MATCH_CONFIG = {
@@ -155,28 +155,36 @@ with tab1:
             st.success(f"오늘의 조끼 당번은 **{winner}** 님입니다!")
 
 with tab2:
-    st.header("📝 라인업")
+    st.header("📝 D'fit 쿼터별 세부 전략판")
     
-    # 1. 포메이션 및 쿼터 선택
-    formation = st.text_input("포메이션 (예: 4-4-2, 4-3-3)", value="4-4-2")
+    # 1. 쿼터 먼저 선택 (쿼터에 따라 저장된 포메이션이 다를 수 있으므로)
+    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
+
+    # 2. 해당 경기 & 해당 쿼터 데이터 먼저 불러오기
+    saved_positions = {}
+    saved_formation = "4-4-2"  # 기본값
+    
+    for row in lineup_raw:
+        if len(row) >= 4 and row[0] == selected_match and row[1] == q_choice:
+            try: 
+                # row[2]에는 선수 위치, row[3]에는 포메이션 문자열이 저장되어 있다고 가정
+                saved_positions = json.loads(row[2])
+                saved_formation = row[3] if row[3] else "4-4-2"
+            except: 
+                saved_positions = {}
+            break
+
+    # 3. 포메이션 입력 (불러온 값이 있으면 그 값을 기본값으로 표시)
+    if is_admin:
+        formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation)
+    else:
+        st.info(f"현재 {q_choice} 포메이션: **{saved_formation}**")
+        formation = saved_formation
+
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
     except:
         df_n, mf_n, fw_n = 4, 4, 2
-
-    # [중요] 쿼터 선택 - 이 값에 따라 데이터가 완전히 분리됩니다.
-    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
-
-    # 2. 해당 경기 & 해당 쿼터 데이터 로드
-    saved_positions = {}
-    for row in lineup_raw:
-        # 조건에 '쿼터(row[1])' 정보를 추가하여 해당 쿼터 데이터만 가져옵니다.
-        if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
-            try: 
-                saved_positions = json.loads(row[2])
-            except: 
-                saved_positions = {}
-            break
 
     confirmed_players = confirmed_df['이름'].tolist()
     
@@ -184,13 +192,11 @@ with tab2:
     MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM"]
     FW_ROLES = ["ST", "CF", "LW", "RW"]
 
-    # [중요] 키값에 q_choice를 포함시켜서 쿼터별로 입력창이 꼬이지 않게 합니다.
+    # 선수 선택 박스 함수
     def q_role_box(label, p_id, options):
         c1, c2 = st.columns([2, 1])
-        # 쿼터별로 독립된 key 생성
         key_prefix = f"{selected_match}_{q_choice}_{p_id}"
         
-        # 쿼터 내 중복 체크
         taken_names = [v.split('|')[0] for k, v in st.session_state.items() 
                        if f"{selected_match}_{q_choice}" in k and "|" in str(v) and k != f"{key_prefix}_name"]
         available = ["미배정"] + [p for p in confirmed_players if p not in taken_names]
@@ -224,19 +230,17 @@ with tab2:
     for i in range(fw_n): 
         pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", FW_ROLES)
 
-    # 3. 저장 버튼 (관리자 전용)
+    # 4. 저장 버튼 (포메이션 정보 포함해서 전송)
     if is_admin:
         st.divider()
-        if st.button(f"💾 {q_choice} 라인업 저장"):
-            # 구글 시트에 action: "save_lineup", date, quarter, positions 정보를 보냅니다.
+        if st.button(f"💾 {q_choice} 라인업 & 포메이션 저장"):
             requests.post(API_URL, json={
                 "action": "save_lineup", 
                 "date": selected_match, 
                 "quarter": q_choice, 
-                "positions": pos_data
+                "positions": pos_data,
+                "formation": formation  # <--- 포메이션 정보 추가!
             })
             st.cache_data.clear()
-            st.success(f"{q_choice} 라인업이 성공적으로 저장되었습니다!")
+            st.success(f"{q_choice} 라인업이 저장되었습니다!")
             st.rerun()
-    else:
-        st.warning("라인업 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
