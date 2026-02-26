@@ -1,5 +1,4 @@
 import streamlit as st
-from audiorecorder import audiorecorder # 이건 무시하셔도 됩니다
 import pandas as pd
 from datetime import datetime
 
