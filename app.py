@@ -2,20 +2,21 @@ import streamlit as st
 import pandas as pd
 import requests
 import datetime
+import json
 
 # --- 설정 및 디자인 ---
 st.set_page_config(page_title="FC DGIST 통합 관리", layout="centered", page_icon="⚽")
 
-# CSS로 버튼 및 레이아웃 예쁘게
+# CSS로 디자인 강화
 st.markdown("""
     <style>
     .stButton>button { width: 100%; border-radius: 10px; height: 3em; background-color: #007BFF; color: white; }
     .stMetric { background-color: #f0f2f6; padding: 15px; border-radius: 10px; }
-    [data-testid="stExpander"] { border-radius: 10px; }
+    .stTable { border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- API 설정 (본인의 구글 앱 스크립트 URL을 꼭 넣어주세요) ---
+# --- API 설정 (본인의 구글 앱 스크립트 URL을 입력하세요) ---
 API_URL = "https://script.google.com/macros/s/AKfycbzyMz75oWHac-WiRPhuJFmFgQqRuKiqERx3PJ7JBPh5mZKKPIuI566lM8rBEjAXvJyOHw/exec"
 
 st.title("⚽ FC DGIST 운영 시스템")
@@ -30,27 +31,29 @@ MATCH_CONFIG = {
 selected_match = st.selectbox("📅 경기 일정을 선택하세요", list(MATCH_CONFIG.keys()))
 MAX_CAPACITY = MATCH_CONFIG[selected_match]
 
-# 데이터 로딩 함수
-@st.cache_data(ttl=5)
-def get_data(url):
+# 데이터 로딩 함수 (참석 명단 + 라인업)
+@st.cache_data(ttl=2)
+def get_all_data(url):
     try:
         res = requests.get(url)
-        data = res.json()
-        return pd.DataFrame(data[1:], columns=data[0]) if len(data) > 1 else pd.DataFrame(columns=['일정', '이름', '시간'])
+        full_data = res.json()
+        attend_df = pd.DataFrame(full_data['attend'][1:], columns=full_data['attend'][0]) if len(full_data['attend']) > 1 else pd.DataFrame(columns=['일정', '이름', '시간'])
+        lineup_raw = full_data.get('lineup', [])
+        return attend_df, lineup_raw
     except:
-        return pd.DataFrame(columns=['일정', '이름', '시간'])
+        return pd.DataFrame(columns=['일정', '이름', '시간']), []
 
-with st.spinner('최신 명단 불러오는 중...'):
-    df = get_data(API_URL)
+with st.spinner('데이터 동기화 중...'):
+    attend_df, lineup_raw = get_all_data(API_URL)
 
 # 현재 일정에 맞는 명단 필터링
-current_match_df = df[df['일정'] == selected_match].reset_index(drop=True)
+current_match_df = attend_df[attend_df['일정'] == selected_match].reset_index(drop=True)
 current_count = len(current_match_df)
 
-# --- 메인 탭 구성 ---
-tab1, tab2, tab3 = st.tabs(["✅ 신청/취소", "📋 전체 명단", "🏃 쿼터별 라인업"])
+# --- 메인 탭 구성 (2개로 통합) ---
+tab1, tab2 = st.tabs(["📝 신청 및 명단 확인", "🏃 쿼터별 라인업"])
 
-# [탭 1: 신청 및 취소]
+# [탭 1: 신청/취소 + 전체 명단 통합]
 with tab1:
     c1, c2 = st.columns(2)
     c1.metric("현재 신청", f"{current_count} 명")
@@ -91,45 +94,73 @@ with tab1:
                 else:
                     st.error("명단에 없습니다.")
 
-# [탭 2: 전체 명단 확인]
-with tab2:
-    st.subheader(f"📊 {selected_match} 확정 명단")
+    # 신청/취소 바로 아래에 명단 배치
+    st.divider()
+    st.subheader(f"📋 {selected_match} 확정 명단")
     if not current_match_df.empty:
         display_df = current_match_df[['이름']].copy()
         display_df.index = display_df.index + 1
-        display_df.columns = ['참석자 성함']
+        display_df.columns = ['참석자 명단']
         st.table(display_df)
     else:
         st.write("아직 신청자가 없습니다.")
 
-# [탭 3: 쿼터별 라인업 전략판]
-with tab3:
+# [탭 2: 쿼터별 라인업 (날짜/쿼터 연동 저장)]
+with tab2:
     st.header("📝 쿼터별 전략판")
+    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
+    
+    # 해당 날짜 & 쿼터의 저장된 라인업 찾기
+    saved_positions = {}
+    for row in lineup_raw:
+        if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
+            try:
+                saved_positions = json.loads(row[2])
+            except:
+                saved_positions = {}
+            break
+
     player_list = ["미배정"] + current_match_df['이름'].tolist()
     
-    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
     st.divider()
-    
-    # 포지션 배치 UI
-    st.write(f"🏟️ **{q_choice} 포메이션 (4-4-2)**")
-    
-    # FW
+    st.subheader(f"🏟️ {selected_match} - {q_choice}")
+
+    pos_data = {}
+    # 포지션 선택 UI (저장된 값이 있으면 불러오고, 없으면 미배정)
+    def get_index(pos_key):
+        val = saved_positions.get(pos_key, "미배정")
+        return player_list.index(val) if val in player_list else 0
+
     st.caption("공격수 (FW)")
     f1, f2 = st.columns(2)
-    fw1 = f1.selectbox("ST (좌)", player_list, key=f"{q_choice}_fw1")
-    fw2 = f2.selectbox("ST (우)", player_list, key=f"{q_choice}_fw2")
+    pos_data['fw1'] = f1.selectbox("ST(L)", player_list, index=get_index('fw1'), key=f"fw1_{selected_match}_{q_choice}")
+    pos_data['fw2'] = f2.selectbox("ST(R)", player_list, index=get_index('fw2'), key=f"fw2_{selected_match}_{q_choice}")
 
-    # MF
     st.caption("미드필더 (MF)")
     m1, m2, m3, m4 = st.columns(4)
-    mf1 = m1.selectbox("LM", player_list, key=f"{q_choice}_mf1")
-    mf2 = m2.selectbox("CM(L)", player_list, key=f"{q_choice}_mf2")
-    mf3 = m3.selectbox("CM(R)", player_list, key=f"{q_choice}_mf3")
-    mf4 = m4.selectbox("RM", player_list, key=f"{q_choice}_mf4")
+    pos_data['mf1'] = m1.selectbox("LM", player_list, index=get_index('mf1'), key=f"mf1_{selected_match}_{q_choice}")
+    pos_data['mf2'] = m2.selectbox("CM(L)", player_list, index=get_index('mf2'), key=f"mf2_{selected_match}_{q_choice}")
+    pos_data['mf3'] = m3.selectbox("CM(R)", player_list, index=get_index('mf3'), key=f"mf3_{selected_match}_{q_choice}")
+    pos_data['mf4'] = m4.selectbox("RM", player_list, index=get_index('mf4'), key=f"mf4_{selected_match}_{q_choice}")
 
-    # DF
     st.caption("수비수 (DF)")
     d1, d2, d3, d4 = st.columns(4)
-    df1 = d1.selectbox("LB", player_list, key=f"{q_choice}_df1")
-    df2 = d2.selectbox("CB(L)", player_list, key=f"{q_choice}_df2")
-    df3 = d3.selectbox("CB(R)", player_list, key=f"{q_choice}_df3")
+    pos_data['df1'] = d1.selectbox("LB", player_list, index=get_index('df1'), key=f"df1_{selected_match}_{q_choice}")
+    pos_data['df2'] = d2.selectbox("CB(L)", player_list, index=get_index('df2'), key=f"df2_{selected_match}_{q_choice}")
+    pos_data['df3'] = d3.selectbox("CB(R)", player_list, index=get_index('df3'), key=f"df3_{selected_match}_{q_choice}")
+    pos_data['df4'] = d4.selectbox("RB", player_list, index=get_index('df4'), key=f"df4_{selected_match}_{q_choice}")
+
+    st.caption("골키퍼 (GK)")
+    pos_data['gk'] = st.selectbox("GK", player_list, index=get_index('gk'), key=f"gk_{selected_match}_{q_choice}")
+
+    if st.button("💾 현재 라인업 저장하기"):
+        with st.spinner("구글 시트에 저장 중..."):
+            requests.post(API_URL, json={
+                "action": "save_lineup",
+                "date": selected_match,
+                "quarter": q_choice,
+                "positions": pos_data
+            })
+            st.cache_data.clear()
+            st.success("라인업이 저장되었습니다! 부원들도 이제 이 화면을 볼 수 있습니다.")
+            st.rerun()
