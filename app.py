@@ -230,12 +230,20 @@ with tab2:
     
     saved_positions = {}
     saved_formation = "4-4-2"
+    # 데이터 로드 부분 수정
+    saved_positions = {}
+    saved_formation = "4-4-2" # 기본값
+    
     for row in lineup_raw:
-        if len(row) >= 4 and row[0] == selected_match and row[1] == q_choice:
+        # row의 길이를 체크해서 포메이션 정보(4번째 열)가 있는지 확인합니다.
+        if len(row) >= 2 and row[0] == selected_match and row[1] == q_choice:
             try: 
                 saved_positions = json.loads(row[2])
-                saved_formation = row[3] if row[3] else "4-4-2"
-            except: pass
+                # 4번째 열(index 3)에 포메이션 정보가 있다면 가져옵니다.
+                if len(row) >= 4:
+                    saved_formation = row[3]
+            except: 
+                pass
             break
 
     if is_admin:
