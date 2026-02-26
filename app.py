@@ -112,10 +112,75 @@ def role_position_box(label_prefix, p_id, role_options, confirmed_players, saved
 tab1, tab2 = st.tabs(["📝 신청 및 명단 확인", "🏃 세부 전략판"])
 
 with tab1:
-    # (신청/취소/명단/조끼추첨 로직 - 기존과 동일하게 들어감)
-    st.info("여기는 기존 신청 명단 페이지입니다.")
-    # ... 중략 (재환님 기존 탭1 코드 그대로 유지 가능)
+    c_m1, c_m2 = st.columns(2)
+    c_m1.metric("확정 인원", f"{len(confirmed_df)} / {MAX_CAPACITY}")
+    c_m2.metric("대기 인원", f"{len(waiting_df)} 명")
+    
+    st.divider()
+    
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        st.subheader("🙋 참석 신청")
+        with st.form("add_form", clear_on_submit=True):
+            name = st.text_input("이름", placeholder="이름을 입력하세요")
+            if st.form_submit_button("참석 확정"):
+                if name.strip() == "": st.warning("이름을 입력해주세요.")
+                elif name in match_all_df['이름'].values: st.info("이미 등록된 이름입니다.")
+                else:
+                    now = datetime.datetime.now().strftime("%H:%M")
+                    requests.post(API_URL, json={"action": "add", "date": selected_match, "name": name, "time": now})
+                    st.cache_data.clear()
+                    st.success(f"{name}님 신청 완료!")
+                    st.rerun()
 
+    with col_f2:
+        st.subheader("🚫 신청 취소")
+        if is_admin:
+            with st.form("del_form", clear_on_submit=True):
+                del_name = st.text_input("취소할 이름")
+                if st.form_submit_button("신청 취소"):
+                    if del_name in match_all_df['이름'].values:
+                        requests.post(API_URL, json={"action": "delete", "date": selected_match, "name": del_name})
+                        st.cache_data.clear()
+                        st.success(f"{del_name}님 취소 완료.")
+                        st.rerun()
+                    else: st.error("명단에 없습니다.")
+        else:
+            st.warning("취소는 관리자 로그인이 필요합니다.")
+
+    st.divider()
+    ml1, ml2 = st.columns(2)
+    with ml1:
+        st.subheader("✅ 확정 명단")
+        if not confirmed_df.empty:
+            df_c = confirmed_df[['이름']].copy().reset_index(drop=True)
+            df_c.index += 1
+            st.table(df_c)
+        else: st.write("확정 인원이 없습니다.")
+    with ml2:
+        st.subheader("⏳ 예비 명단")
+        if not waiting_df.empty:
+            df_w = waiting_df[['이름']].copy().reset_index(drop=True)
+            df_w.index += 1
+            st.table(df_w)
+        else: st.write("대기자가 없습니다.")
+
+    st.divider()
+    st.subheader("🧺 오늘 조끼 빨 사람?")
+    if is_admin:
+        if not confirmed_df.empty:
+            if 'laundry_hero' not in st.session_state: st.session_state.laundry_hero = None
+            cl1, cl2 = st.columns([1, 2])
+            with cl1:
+                if st.button("🎰 랜덤 추첨하기"):
+                    import random
+                    st.session_state.laundry_hero = random.choice(confirmed_df['이름'].tolist())
+                    st.balloons()
+            with cl2:
+                if st.session_state.laundry_hero: st.markdown(f"### 🎉 당첨자: **{st.session_state.laundry_hero}** 님!")
+        else: st.write("확정 인원이 없습니다.")
+    else:
+        st.info("추첨은 관리자 로그인이 필요합니다.")
 with tab2:
     st.header("📝 D'fit 가변 전략판")
     formation = st.text_input("포메이션 (예: 4-4-2)", value="4-4-2")
