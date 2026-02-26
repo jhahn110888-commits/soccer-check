@@ -209,24 +209,56 @@ with tab2:
     FW_ROLES = ["ST", "CF", "LW", "RW"]
 
     # 선수 선택 박스 함수
-    def q_role_box(label, p_id, options):
+    # 1. 선수 선택 시 화면을 새로고침하여 목록을 업데이트하는 함수
+    def handle_change():
+        st.cache_data.clear() # 캐시를 비워 실시간 반영 보장
+
+    def role_box(label, p_id, options):
         c1, c2 = st.columns([2, 1])
-        key_prefix = f"{selected_match}_{q_choice}_{p_id}"
+        prefix = f"{selected_match}_{q_choice}"
         
-        taken_names = [v.split('|')[0] for k, v in st.session_state.items() 
-                       if f"{selected_match}_{q_choice}" in k and "|" in str(v) and k != f"{key_prefix}_name"]
-        available = ["미배정"] + [p for p in confirmed_players if p not in taken_names]
+        # 2. 현재 세션에 저장된 모든 '이름' 데이터 수집 (자기 자신 제외)
+        current_selections = []
+        for k, v in st.session_state.items():
+            # 이름 선택 박스이고, 현재 수정 중인 칸이 아니며, '미배정'이 아닌 경우
+            if prefix in k and "_name" in k and k != f"{prefix}_{p_id}_name":
+                if v != "미배정":
+                    current_selections.append(v)
         
+        # 3. 전체 확정 명단에서 이미 선택된 사람 제외한 목록 생성
+        available = ["미배정"] + [p for p in confirmed_players if p not in current_selections]
+        
+        # 4. 기존 저장값 불러오기
         saved_val = saved_positions.get(p_id, "미배정|")
         s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
         
         with c1:
-            if s_name not in available and s_name in confirmed_players: available.append(s_name)
-            idx = available.index(s_name) if s_name in available else 0
-            sel_n = st.selectbox(f"{label}", available, index=idx, key=f"{key_prefix}_name")
+            # 현재 이 칸에 이미 선택된 이름이 있다면 목록에 포함시켜야 에러가 안 납니다.
+            display_list = available.copy()
+            if s_name != "미배정" and s_name not in display_list:
+                display_list.append(s_name)
+            
+            # 선택한 값을 찾아서 index 설정
+            idx = display_list.index(s_name) if s_name in display_list else 0
+            
+            # [핵심] on_change를 넣어 값을 바꾸는 순간 화면을 다시 그려 목록을 갱신합니다.
+            sel_n = st.selectbox(
+                f"{label} 이름", 
+                display_list, 
+                index=idx, 
+                key=f"{prefix}_{p_id}_name",
+                on_change=handle_change
+            )
+            
         with c2:
             r_idx = options.index(s_role) if s_role in options else 0
-            sel_r = st.selectbox(f"{label}", options, index=r_idx, key=f"{key_prefix}_role")
+            sel_r = st.selectbox(
+                f"{label} 역할", 
+                options, 
+                index=r_idx, 
+                key=f"{prefix}_{p_id}_role"
+            )
+            
         return f"{sel_n}|{sel_r}"
 
     # 포지션 배치 UI
