@@ -91,7 +91,7 @@ def role_box(label, p_id, options):
         sel_n = st.selectbox(f"{label} 이름", available, index=idx, key=f"{prefix}{p_id}_name")
     with c2:
         r_idx = options.index(s_role) if s_role in options else 0
-        sel_r = st.selectbox(f"{label} 역할", options, index=r_idx, key=f"{prefix}{p_id}_role")
+        sel_r = st.selectbox(f"{label}", options, index=r_idx, key=f"{prefix}{p_id}_role")
     return f"{sel_n}|{sel_r}"
 
 # --- 5. 메인 화면 ---
@@ -204,7 +204,7 @@ with tab2:
             sel_n = st.selectbox(f"{label} 이름", available, index=idx, key=f"{key_prefix}_name")
         with c2:
             r_idx = options.index(s_role) if s_role in options else 0
-            sel_r = st.selectbox(f"{label} 역할", options, index=r_idx, key=f"{key_prefix}_role")
+            sel_r = st.selectbox(f"{label}", options, index=r_idx, key=f"{key_prefix}_role")
         return f"{sel_n}|{sel_r}"
 
     # 포지션 배치 UI
@@ -239,4 +239,4 @@ with tab2:
             st.success(f"{q_choice} 라인업이 성공적으로 저장되었습니다!")
             st.rerun()
     else:
-        st.warning("전략판 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
+        st.warning("라인업 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
