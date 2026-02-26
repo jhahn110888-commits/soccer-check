@@ -6,8 +6,8 @@ import requests
 API_URL = "https://script.google.com/macros/s/AKfycbzyMz75oWHac-WiRPhuJFmFgQqRuKiqERx3PJ7JBPh5mZKKPIuI566lM8rBEjAXvJyOHw/exec"
 # -----------------------------------------------
 
-st.set_page_config(page_title="축구부 통합 관리", layout="centered")
-st.title("⚽ 축구부 일정 및 참석 관리")
+st.set_page_config(page_title="D'fit 일정 관리", layout="centered")
+st.title("⚽ D'fit 일정 및 참석 관리")
 
 # 1. 일정별 인원 제한 설정 (딕셔너리 형태)
 # "일정 이름": 인원제한 숫자 형태로 적어주시면 됩니다.
@@ -18,7 +18,7 @@ MATCH_CONFIG = {
 }
 
 # 일정 선택
-selected_match = st.selectbox("📅 경기를 선택하세요", list(MATCH_CONFIG.keys()))
+selected_match = st.selectbox("📅 일정을 선택하세요", list(MATCH_CONFIG.keys()))
 MAX_CAPACITY = MATCH_CONFIG[selected_match]
 
 # 데이터 불러오기 함수
@@ -88,4 +88,4 @@ if not current_match_df.empty:
     # 3. 표 출력
     st.table(display_df)
 else:
-    st.write("아직 신청자가 없습니다. 1등으로 신청해보세요!")
+    st.write("아직 신청자가 없습니다.")
