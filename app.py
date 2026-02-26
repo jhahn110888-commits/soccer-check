@@ -15,7 +15,7 @@ ADMIN_PW = "dfit2026"   # 비밀번호 (이걸로 로그인하세요!)
 credentials = {
     "usernames": {
         ADMIN_ID: {
-            "name": "Master Admin",
+            "name": "Dfit",
             "password": ADMIN_PW
         }
     }
