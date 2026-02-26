@@ -75,24 +75,40 @@ waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
 # --- 4. 보조 함수 (전략판용) ---
 def role_box(label, p_id, options):
-    c1, c2 = st.columns([2, 1])
-    prefix = f"{selected_match}_pos_"
-    
-    # 중복 체크 (세션 내에서 이름 중복 방지)
-    taken_names = [v.split('|')[0] for k, v in st.session_state.items() if prefix in k and "|" in str(v) and k != f"{prefix}{p_id}_name"]
-    available = ["미배정"] + [p for p in confirmed_players if p not in taken_names]
-    
-    saved_val = saved_positions.get(p_id, "미배정|")
-    s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
-    
-    with c1:
-        if s_name not in available and s_name in confirmed_players: available.append(s_name)
-        idx = available.index(s_name) if s_name in available else 0
-        sel_n = st.selectbox(f"{label} 이름", available, index=idx, key=f"{prefix}{p_id}_name")
-    with c2:
-        r_idx = options.index(s_role) if s_role in options else 0
-        sel_r = st.selectbox(f"{label}", options, index=r_idx, key=f"{prefix}{p_id}_role")
-    return f"{sel_n}|{sel_r}"
+        c1, c2 = st.columns([2, 1])
+        # 현재 경기_쿼터 정보를 포함한 고유 키 접두사
+        prefix = f"{selected_match}_{q_choice}"
+        
+        # 1. 현재 쿼터 내에서 이미 선택된 모든 이름 수집 (자기 자신은 제외)
+        # 세션 상태에 저장된 값들 중 '이름|역할' 형태인 것들을 찾아 이름만 추출합니다.
+        current_selections = []
+        for k, v in st.session_state.items():
+            if prefix in k and "_name" in k and k != f"{prefix}_{p_id}_name":
+                if v != "미배정":
+                    current_selections.append(v)
+        
+        # 2. 전체 확정 명단에서 이미 선택된 사람 제외
+        available = ["미배정"] + [p for p in confirmed_players if p not in current_selections]
+        
+        # 3. 기존 저장된 데이터 불러오기
+        saved_val = saved_positions.get(p_id, "미배정|")
+        s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
+        
+        with c1:
+            # 저장된 이름이 현재 선택 가능한 목록에 없더라도(중복 방지 로직 때문), 
+            # 화면에 표시하기 위해 목록에 강제로 추가해줍니다.
+            display_available = available.copy()
+            if s_name != "미배정" and s_name not in display_available:
+                display_available.append(s_name)
+            
+            idx = display_available.index(s_name) if s_name in display_available else 0
+            sel_n = st.selectbox(f"{label} 이름", display_available, index=idx, key=f"{prefix}_{p_id}_name")
+            
+        with c2:
+            r_idx = options.index(s_role) if s_role in options else 0
+            sel_r = st.selectbox(f"{label} 역할", options, index=r_idx, key=f"{prefix}_{p_id}_role")
+            
+        return f"{sel_n}|{sel_r}"
 
 # --- 5. 메인 화면 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단 확인", "🏃 세부 전략판"])
@@ -155,7 +171,7 @@ with tab1:
             st.success(f"오늘의 조끼 당번은 **{winner}** 님입니다!")
 
 with tab2:
-    st.header("📝 D'fit 쿼터별 세부 전략판")
+    st.header("📝 라인업")
     
     # 1. 쿼터 먼저 선택 (쿼터에 따라 저장된 포메이션이 다를 수 있으므로)
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
