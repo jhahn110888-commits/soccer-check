@@ -93,24 +93,43 @@ with tab1:
         st.table(df_w)
 
 with tab2:
+    st.header("📝 D'fit 쿼터별 세부 전략판")
+    
+    # 1. 쿼터 선택
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
     
-    # 데이터 로드
+    # --- [데이터 로드 로직 보강] ---
     saved_positions = {}
-    saved_formation = "4-4-2"
+    saved_formation = "4-4-2"  # 기본값
+    
+    # lineup_raw에서 현재 선택된 경기와 '정확한 쿼터'가 일치하는 행을 끝까지 찾습니다.
     for row in lineup_raw:
-        if len(row) >= 4 and row[0] == selected_match and row[1] == q_choice:
-            try:
-                saved_positions = json.loads(row[2])
-                saved_formation = str(row[3]).replace("'", "") # 작은따옴표 제거 후 로드
-            except: pass
-            break
+        # row[0]: 날짜, row[1]: 쿼터, row[2]: 포지션JSON, row[3]: 포메이션
+        if len(row) >= 2:
+            # 공백이나 대소문자 차이로 안 읽힐 수 있으니 strip() 처리
+            if str(row[0]).strip() == selected_match.strip() and str(row[1]).strip() == q_choice.strip():
+                try:
+                    saved_positions = json.loads(row[2])
+                    # 포메이션 정보가 있다면 작은따옴표를 떼고 깨끗하게 가져옵니다.
+                    if len(row) >= 4:
+                        saved_formation = str(row[3]).replace("'", "").strip()
+                except Exception as e:
+                    pass
+                # 일치하는 쿼터를 찾았으면 루프를 중단합니다.
+                break 
 
-    formation = st.text_input("포메이션 설정", value=saved_formation) if is_admin else saved_formation
-    if not is_admin: st.info(f"현재 포메이션: {formation}")
+    # 2. 관리자/일반 모드에 따른 포메이션 설정
+    if is_admin:
+        formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation, key=f"form_input_{q_choice}")
+    else:
+        st.info(f"현재 {q_choice} 포메이션: **{saved_formation}**")
+        formation = saved_formation
 
-    try: df_n, mf_n, fw_n = map(int, formation.split('-'))
-    except: df_n, mf_n, fw_n = 4, 4, 2
+    # 3. 포메이션 숫자 파싱
+    try:
+        df_n, mf_n, fw_n = map(int, formation.split('-'))
+    except:
+        df_n, mf_n, fw_n = 4, 4, 2
 
     # 중복 제거 로직 함수
     def q_role_box(label, p_id, options):
