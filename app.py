@@ -183,20 +183,19 @@ with tab1:
     else:
         st.info("추첨은 관리자 로그인이 필요합니다.")
 
-# [탭 2: 라인업 - 가변 포메이션]
+# [탭 2: 세부 포지션 선택형 가변 전략판]
 with tab2:
-    st.header("📝 쿼터별 라인업")
+    st.header("📝 D'fit 세부 전략판")
     
-    formation = st.text_input("포메이션 입력 (예: 4-4-2, 4-3-3, 3-5-2)", value="4-4-2")
+    formation = st.text_input("포메이션 입력 (예: 4-4-2, 4-3-3)", value="4-4-2")
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
     except:
-        st.error("포메이션 형식을 '숫자-숫자-숫자'로 입력해 주세요.")
         df_n, mf_n, fw_n = 4, 4, 2
 
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
 
-    # 저장된 라인업 로드
+    # 데이터 로드
     saved_positions = {}
     for row in lineup_raw:
         if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
@@ -206,40 +205,65 @@ with tab2:
 
     confirmed_players = confirmed_df['이름'].tolist()
     
+    # --- 세부 포지션 옵션 정의 ---
+    DF_ROLES = ["LB", "LCB", "CB", "RCB", "RB", "LWB", "RWB"]
+    MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM", "LAM", "RAM"]
+    FW_ROLES = ["ST", "CF", "LW", "RW", "LS", "RS", "LF", "RF"]
+
+    # --- 수정된 position_box 함수 (이름 + 포지션 조합) ---
+    def role_position_box(label_prefix, p_id, role_options):
+        col_name, col_role = st.columns([2, 1]) # 이름 칸을 더 넓게
+        
+        # 1. 선수 이름 선택
+        prefix = f"{selected_match}_{q_choice}_pos_"
+        taken = [v for k, v in st.session_state.items() if prefix in k and k != f"{prefix}{p_id}" and v != "미배정"]
+        available = ["미배정"] + [p for p in confirmed_players if p not in taken]
+        
+        # 기존 저장값 불러오기 (저장 시 '이름|포지션' 형태로 저장함)
+        saved_val = saved_positions.get(p_id, "미배정|")
+        s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
+        
+        with col_name:
+            if s_name not in available and s_name in confirmed_players:
+                available.append(s_name)
+            idx = available.index(s_name) if s_name in available else 0
+            sel_name = st.selectbox(f"{label_prefix} 이름", available, index=idx, key=f"{prefix}{p_id}")
+        
+        with col_role:
+            role_idx = role_options.index(s_role) if s_role in role_options else 0
+            sel_role = st.selectbox(f"{label_prefix} 역할", role_options, index=role_idx, key=f"{prefix}{p_id}_role")
+            
+        return f"{sel_name}|{sel_role}"
+
     st.divider()
     pos_data = {}
 
     # 1. 골키퍼
     st.subheader("🧤 골키퍼")
-    pos_data['gk'] = position_box("GK", "gk", confirmed_players, saved_positions, selected_match, q_choice)
+    pos_data['gk'] = role_position_box("GK", "gk", ["GK"])
 
     # 2. 수비수
     st.subheader(f"🛡️ 수비수 ({df_n}명)")
-    d_cols = st.columns(df_n if df_n > 0 else 1)
     for i in range(df_n):
         p_id = f"df_{i+1}"
-        with d_cols[i]: pos_data[p_id] = position_box(f"DF {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
+        pos_data[p_id] = role_position_box(f"DF {i+1}", p_id, DF_ROLES)
 
     # 3. 미드필더
     st.subheader(f"🏃 미드필더 ({mf_n}명)")
-    m_cols = st.columns(mf_n if mf_n > 0 else 1)
     for i in range(mf_n):
         p_id = f"mf_{i+1}"
-        with m_cols[i]: pos_data[p_id] = position_box(f"MF {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
+        pos_data[p_id] = role_position_box(f"MF {i+1}", p_id, MF_ROLES)
 
     # 4. 공격수
     st.subheader(f"⚽ 공격수 ({fw_n}명)")
-    f_cols = st.columns(fw_n if fw_n > 0 else 1)
     for i in range(fw_n):
         p_id = f"fw_{i+1}"
-        with f_cols[i]: pos_data[p_id] = position_box(f"FW {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
+        pos_data[p_id] = role_position_box(f"FW {i+1}", p_id, FW_ROLES)
 
     if is_admin:
         st.divider()
-        if st.button("💾 이 라인업으로 저장"):
+        if st.button("💾 세부 라인업 저장"):
             requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data})
             st.cache_data.clear()
-            st.success(f"{q_choice} 라인업 저장 완료!")
+            st.success(f"{q_choice} 세부 라인업 저장 완료!")
             st.rerun()
-    else:
-        st.warning("라인업 수정 권한이 없습니다. 관리자 로그인이 필요합니다.")
