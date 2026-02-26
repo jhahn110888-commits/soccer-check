@@ -8,21 +8,27 @@ import streamlit_authenticator as stauth
 # --- 1. 기본 설정 (가장 상단에 위치해야 함) ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
-# --- 2. 공식 인증 설정 (관리자 계정) ---
-names = ['Master Admin']
-usernames = ['admin']
-passwords = ['dfit1234']  # 초기 비밀번호입니다.
+# --- 2. 공식 인증 설정 (최신 버전 0.3.x 규격) ---
+# 1) 전체 사용자 정보 구조 생성
+credentials = {
+    "usernames": {
+        "admin": {
+            "name": "Master Admin",
+            "password": "dfit1234" # 나중에 해싱될 예정
+        }
+    }
+}
 
-# 비밀번호 암호화 및 인증 객체 생성
+# 2) Hasher를 통해 credentials 안의 모든 비밀번호를 한 번에 암호화
+# (이 함수가 내부적으로 usernames 키를 찾으므로 에러가 해결됩니다)
+stauth.Hasher.hash_passwords(credentials)
 
-hashed_passwords = stauth.Hasher.hash_passwords(passwords)
-credentials = {"usernames": {usernames[0]: {"name": names[0], "password": hashed_passwords[0]}}}
-
+# 3) 인증 객체 생성
 authenticator = stauth.Authenticate(
     credentials,
     "soccer_cookie",   # 쿠키 이름
     "auth_key_123",    # 쿠키 암호화 키
-    cookie_expiry_days=7 # 7일간 로그인 유지
+    cookie_expiry_days=7
 )
 
 # 사이드바 로그인 창
