@@ -21,14 +21,11 @@ is_admin = (user_pw == ADMIN_PW)
 with st.sidebar:
     st.header("🔐 관리자 모드")
     if is_admin:
-        st.success("✅ 관리자 인증 완료")
-        st.info("이 URL을 즐겨찾기해두면 새로고침해도 로그인이 유지됩니다.")
         if st.button("로그아웃 (일반 모드로)"):
             st.query_params.clear()
             st.rerun()
     else:
         st.warning("일반 사용자 모드")
-        st.write("관리자는 전용 URL로 접속하세요.")
 
 # --- 3. 디자인 및 API 설정 ---
 st.markdown("""
@@ -133,7 +130,7 @@ with tab1:
                     st.success(f"{del_name}님 취소 완료.")
                     st.rerun()
         else:
-            st.info("취소는 관리자 전용 URL에서 가능합니다.")
+            st.info("취소는 관리자 모드에서 가능합니다.")
 
     st.divider()
     m_c1, m_c2 = st.columns(2)
@@ -154,7 +151,7 @@ with tab1:
             st.success(f"오늘의 조끼 당번은 **{winner}** 님입니다!")
 
 with tab2:
-    st.header("📝 D'fit 세부 전략판")
+    st.header("📝 라인업")
     formation = st.text_input("포메이션 (예: 4-4-2, 4-3-3)", value="4-4-2")
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
@@ -176,16 +173,16 @@ with tab2:
     FW_ROLES = ["ST", "CF", "LW", "RW"]
 
     pos_data = {}
-    st.subheader("🧤 골키퍼")
+    st.subheader("GK")
     pos_data['gk'] = role_box("GK", "gk", ["GK"])
 
-    st.subheader("🛡️ 수비수")
+    st.subheader("DF")
     for i in range(df_n): pos_data[f'df_{i+1}'] = role_box(f"DF {i+1}", f"df_{i+1}", DF_ROLES)
 
-    st.subheader("🏃 미드필더")
+    st.subheader("MF")
     for i in range(mf_n): pos_data[f'mf_{i+1}'] = role_box(f"MF {i+1}", f"mf_{i+1}", MF_ROLES)
 
-    st.subheader("⚽ 공격수")
+    st.subheader("FW")
     for i in range(fw_n): pos_data[f'fw_{i+1}'] = role_box(f"FW {i+1}", f"fw_{i+1}", FW_ROLES)
 
     if is_admin:
@@ -196,4 +193,4 @@ with tab2:
             st.success("세부 라인업 저장 완료!")
             st.rerun()
     else:
-        st.warning("전략판 수정 권한이 없습니다. 관리자 URL로 접속하세요.")
+        st.warning("라인업 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
