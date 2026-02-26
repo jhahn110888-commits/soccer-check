@@ -171,85 +171,45 @@ with tab1:
             st.success(f"오늘의 조끼 당번은 **{winner}** 님입니다!")
 
 with tab2:
-    st.header("📝 라인업")
+    st.header("📝 D'fit 쿼터별 세부 전략판")
     
-    # 1. 쿼터 먼저 선택 (쿼터에 따라 저장된 포메이션이 다를 수 있으므로)
-    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
-
-    # 2. 해당 경기 & 해당 쿼터 데이터 먼저 불러오기
-    saved_positions = {}
-    saved_formation = "4-4-2"  # 기본값
-    
-    for row in lineup_raw:
-        if len(row) >= 4 and row[0] == selected_match and row[1] == q_choice:
-            try: 
-                # row[2]에는 선수 위치, row[3]에는 포메이션 문자열이 저장되어 있다고 가정
-                saved_positions = json.loads(row[2])
-                saved_formation = row[3] if row[3] else "4-4-2"
-            except: 
-                saved_positions = {}
-            break
-
-    # 3. 포메이션 입력 (불러온 값이 있으면 그 값을 기본값으로 표시)
-    if is_admin:
-        formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation)
-    else:
-        st.info(f"현재 {q_choice} 포메이션: **{saved_formation}**")
-        formation = saved_formation
-
-    try:
-        df_n, mf_n, fw_n = map(int, formation.split('-'))
-    except:
-        df_n, mf_n, fw_n = 4, 4, 2
-
-    confirmed_players = confirmed_df['이름'].tolist()
-    
-    DF_ROLES = ["LB", "LCB", "CB", "RCB", "RB"]
-    MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM"]
-    FW_ROLES = ["ST", "CF", "LW", "RW"]
-
-    # 선수 선택 박스 함수
-    # 1. 선수 선택 시 화면을 새로고침하여 목록을 업데이트하는 함수
+    # --- [함수 정의: 호출보다 위에 있어야 에러가 안 납니다] ---
     def handle_change():
-        st.cache_data.clear() # 캐시를 비워 실시간 반영 보장
+        # 선택 시 화면을 다시 그려 목록을 실시간 업데이트합니다.
+        pass 
 
-    def role_box(label, p_id, options):
+    def q_role_box(label, p_id, options, confirmed_players, saved_positions, q_choice, selected_match):
         c1, c2 = st.columns([2, 1])
         prefix = f"{selected_match}_{q_choice}"
         
-        # 2. 현재 세션에 저장된 모든 '이름' 데이터 수집 (자기 자신 제외)
+        # 1. 현재 쿼터 내에서 이미 선택된 이름들 수집 (자기 자신 제외)
         current_selections = []
         for k, v in st.session_state.items():
-            # 이름 선택 박스이고, 현재 수정 중인 칸이 아니며, '미배정'이 아닌 경우
             if prefix in k and "_name" in k and k != f"{prefix}_{p_id}_name":
                 if v != "미배정":
                     current_selections.append(v)
         
-        # 3. 전체 확정 명단에서 이미 선택된 사람 제외한 목록 생성
+        # 2. 전체 명단에서 선택된 사람 제외
         available = ["미배정"] + [p for p in confirmed_players if p not in current_selections]
         
-        # 4. 기존 저장값 불러오기
+        # 3. 저장된 값 불러오기
         saved_val = saved_positions.get(p_id, "미배정|")
         s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
         
         with c1:
-            # 현재 이 칸에 이미 선택된 이름이 있다면 목록에 포함시켜야 에러가 안 납니다.
+            # 현재 선택된 이름은 목록에 유지 (에러 방지)
             display_list = available.copy()
             if s_name != "미배정" and s_name not in display_list:
                 display_list.append(s_name)
             
-            # 선택한 값을 찾아서 index 설정
             idx = display_list.index(s_name) if s_name in display_list else 0
-            
-            # [핵심] on_change를 넣어 값을 바꾸는 순간 화면을 다시 그려 목록을 갱신합니다.
             sel_n = st.selectbox(
                 f"{label} 이름", 
                 display_list, 
                 index=idx, 
                 key=f"{prefix}_{p_id}_name",
-                on_change=handle_change
+                on_change=handle_change # 상태 변경 시 즉시 반영
             )
-            
         with c2:
             r_idx = options.index(s_role) if s_role in options else 0
             sel_r = st.selectbox(
@@ -258,37 +218,70 @@ with tab2:
                 index=r_idx, 
                 key=f"{prefix}_{p_id}_role"
             )
-            
         return f"{sel_n}|{sel_r}"
+    # --- [함수 정의 끝] ---
 
-    # 포지션 배치 UI
+    # 1. 쿼터 및 포메이션 설정
+    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
+    
+    # 데이터 로드
+    saved_positions = {}
+    saved_formation = "4-4-2"
+    for row in lineup_raw:
+        if len(row) >= 4 and row[0] == selected_match and row[1] == q_choice:
+            try: 
+                saved_positions = json.loads(row[2])
+                saved_formation = row[3] if row[3] else "4-4-2"
+            except: pass
+            break
+
+    if is_admin:
+        formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation)
+    else:
+        st.info(f"현재 포메이션: **{saved_formation}**")
+        formation = saved_formation
+
+    try:
+        df_n, mf_n, fw_n = map(int, formation.split('-'))
+    except:
+        df_n, mf_n, fw_n = 4, 4, 2
+
+    confirmed_players = confirmed_df['이름'].tolist()
+    DF_ROLES = ["LB", "LCB", "CB", "RCB", "RB"]
+    MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM"]
+    FW_ROLES = ["ST", "CF", "LW", "RW"]
+
+    # 2. 라인업 배치 UI 호출
     pos_data = {}
-    st.subheader(f"GK")
-    pos_data['gk'] = q_role_box("GK", "gk", ["GK"])
+    st.subheader(f"🧤 {q_choice} 골키퍼")
+    pos_data['gk'] = q_role_box("GK", "gk", ["GK"], confirmed_players, saved_positions, q_choice, selected_match)
 
-    st.subheader(f"DF")
+    st.subheader(f"🛡️ {q_choice} 수비수")
     for i in range(df_n): 
-        pos_data[f'df_{i+1}'] = q_role_box(f"DF {i+1}", f"df_{i+1}", DF_ROLES)
+        p_id = f'df_{i+1}'
+        pos_data[p_id] = q_role_box(f"DF {i+1}", p_id, DF_ROLES, confirmed_players, saved_positions, q_choice, selected_match)
 
-    st.subheader(f"MF")
+    st.subheader(f"🏃 {q_choice} 미드필더")
     for i in range(mf_n): 
-        pos_data[f'mf_{i+1}'] = q_role_box(f"MF {i+1}", f"mf_{i+1}", MF_ROLES)
+        p_id = f'mf_{i+1}'
+        pos_data[p_id] = q_role_box(f"MF {i+1}", p_id, MF_ROLES, confirmed_players, saved_positions, q_choice, selected_match)
 
-    st.subheader(f"FW")
+    st.subheader(f"⚽ {q_choice} 공격수")
     for i in range(fw_n): 
-        pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", FW_ROLES)
+        p_id = f'fw_{i+1}'
+        pos_data[p_id] = q_role_box(f"FW {i+1}", p_id, FW_ROLES, confirmed_players, saved_positions, q_choice, selected_match)
 
-    # 4. 저장 버튼 (포메이션 정보 포함해서 전송)
+    # 3. 저장 버튼
     if is_admin:
         st.divider()
-        if st.button(f"💾 {q_choice} 라인업 & 포메이션 저장"):
+        if st.button(f"💾 {q_choice} 설정 저장"):
             requests.post(API_URL, json={
                 "action": "save_lineup", 
                 "date": selected_match, 
                 "quarter": q_choice, 
                 "positions": pos_data,
-                "formation": formation  # <--- 포메이션 정보 추가!
+                "formation": formation
             })
             st.cache_data.clear()
-            st.success(f"{q_choice} 라인업이 저장되었습니다!")
+            st.success("저장되었습니다!")
             st.rerun()
