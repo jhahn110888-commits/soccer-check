@@ -37,7 +37,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 재환님의 구글 앱스 스크립트 API URL
-API_URL = "https://script.google.com/macros/s/AKfycbwyAWhVK4KGk0GJcNz1GJt1RzudRmRgf0SK_pADPZ3NrmLiree0p9WRZb5ZhHf0aema/exec"
+API_URL = "https://script.google.com/macros/s/AKfycbwFxHQAvHtCAPsMdf8p4Vi9GDcdCynZSJILLpqdke6k_6a3SPaxasT_MUhn2py0fOlxUg/exec"
 
 # 경기 일정 설정
 MATCH_CONFIG = {
