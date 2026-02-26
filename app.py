@@ -14,7 +14,8 @@ usernames = ['admin']
 passwords = ['dfit1234']  # 초기 비밀번호입니다.
 
 # 비밀번호 암호화 및 인증 객체 생성
-hashed_passwords = stauth.Hasher(passwords).generate()
+# 최신 버전 함수 방식입니다.
+hashed_passwords = stauth.Hasher(passwords).hash()
 credentials = {"usernames": {usernames[0]: {"name": names[0], "password": hashed_passwords[0]}}}
 
 authenticator = stauth.Authenticate(
