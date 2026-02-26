@@ -9,9 +9,8 @@ import streamlit_authenticator as stauth
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
 # --- 2. 공식 인증 설정 ---
-# 재환님이 사용할 아이디와 비밀번호를 여기서 먼저 정의하세요.
-ADMIN_ID = "admin"      # 아이디
-ADMIN_PW = "dfit1234"   # 비밀번호 (이걸로 로그인하세요!)
+ADMIN_ID = "master"      # 아이디
+ADMIN_PW = "dfit2026"   # 비밀번호 (이걸로 로그인하세요!)
 
 credentials = {
     "usernames": {
