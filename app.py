@@ -34,8 +34,10 @@ authenticator = stauth.Authenticate(
 # 사이드바 로그인 창
 with st.sidebar:
     st.header("🔐 관리자 로그인")
-    name, authentication_status, username = authenticator.login("로그인", location="sidebar")
-
+    authenticator.login(max_concurrent_users=None, location="sidebar")
+    authentication_status = st.session_state["authentication_status"]
+    name = st.session_state["name"]
+    username = st.session_state["username"]
 # 관리자 권한 여부 확인
 is_admin = authentication_status
 
