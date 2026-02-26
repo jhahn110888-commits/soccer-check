@@ -156,18 +156,26 @@ with tab1:
 
 with tab2:
     st.header("📝 라인업")
+    
+    # 1. 포메이션 및 쿼터 선택
     formation = st.text_input("포메이션 (예: 4-4-2, 4-3-3)", value="4-4-2")
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
     except:
         df_n, mf_n, fw_n = 4, 4, 2
 
-    # 데이터 로드
+    # [중요] 쿼터 선택 - 이 값에 따라 데이터가 완전히 분리됩니다.
+    q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
+
+    # 2. 해당 경기 & 해당 쿼터 데이터 로드
     saved_positions = {}
     for row in lineup_raw:
-        if len(row) >= 3 and row[0] == selected_match:
-            try: saved_positions = json.loads(row[2])
-            except: saved_positions = {}
+        # 조건에 '쿼터(row[1])' 정보를 추가하여 해당 쿼터 데이터만 가져옵니다.
+        if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
+            try: 
+                saved_positions = json.loads(row[2])
+            except: 
+                saved_positions = {}
             break
 
     confirmed_players = confirmed_df['이름'].tolist()
@@ -176,25 +184,59 @@ with tab2:
     MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM"]
     FW_ROLES = ["ST", "CF", "LW", "RW"]
 
+    # [중요] 키값에 q_choice를 포함시켜서 쿼터별로 입력창이 꼬이지 않게 합니다.
+    def q_role_box(label, p_id, options):
+        c1, c2 = st.columns([2, 1])
+        # 쿼터별로 독립된 key 생성
+        key_prefix = f"{selected_match}_{q_choice}_{p_id}"
+        
+        # 쿼터 내 중복 체크
+        taken_names = [v.split('|')[0] for k, v in st.session_state.items() 
+                       if f"{selected_match}_{q_choice}" in k and "|" in str(v) and k != f"{key_prefix}_name"]
+        available = ["미배정"] + [p for p in confirmed_players if p not in taken_names]
+        
+        saved_val = saved_positions.get(p_id, "미배정|")
+        s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
+        
+        with c1:
+            if s_name not in available and s_name in confirmed_players: available.append(s_name)
+            idx = available.index(s_name) if s_name in available else 0
+            sel_n = st.selectbox(f"{label} 이름", available, index=idx, key=f"{key_prefix}_name")
+        with c2:
+            r_idx = options.index(s_role) if s_role in options else 0
+            sel_r = st.selectbox(f"{label} 역할", options, index=r_idx, key=f"{key_prefix}_role")
+        return f"{sel_n}|{sel_r}"
+
+    # 포지션 배치 UI
     pos_data = {}
-    st.subheader("GK")
-    pos_data['gk'] = role_box("GK", "gk", ["GK"])
+    st.subheader(f"GK")
+    pos_data['gk'] = q_role_box("GK", "gk", ["GK"])
 
-    st.subheader("DF")
-    for i in range(df_n): pos_data[f'df_{i+1}'] = role_box(f"DF {i+1}", f"df_{i+1}", DF_ROLES)
+    st.subheader(f"DF")
+    for i in range(df_n): 
+        pos_data[f'df_{i+1}'] = q_role_box(f"DF {i+1}", f"df_{i+1}", DF_ROLES)
 
-    st.subheader("MF")
-    for i in range(mf_n): pos_data[f'mf_{i+1}'] = role_box(f"MF {i+1}", f"mf_{i+1}", MF_ROLES)
+    st.subheader(f"MF")
+    for i in range(mf_n): 
+        pos_data[f'mf_{i+1}'] = q_role_box(f"MF {i+1}", f"mf_{i+1}", MF_ROLES)
 
-    st.subheader("FW")
-    for i in range(fw_n): pos_data[f'fw_{i+1}'] = role_box(f"FW {i+1}", f"fw_{i+1}", FW_ROLES)
+    st.subheader(f"FW")
+    for i in range(fw_n): 
+        pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", FW_ROLES)
 
+    # 3. 저장 버튼 (관리자 전용)
     if is_admin:
         st.divider()
-        if st.button("💾 이 라인업으로 저장"):
-            requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "positions": pos_data})
+        if st.button(f"💾 {q_choice} 라인업 저장"):
+            # 구글 시트에 action: "save_lineup", date, quarter, positions 정보를 보냅니다.
+            requests.post(API_URL, json={
+                "action": "save_lineup", 
+                "date": selected_match, 
+                "quarter": q_choice, 
+                "positions": pos_data
+            })
             st.cache_data.clear()
-            st.success("세부 라인업 저장 완료!")
+            st.success(f"{q_choice} 라인업이 성공적으로 저장되었습니다!")
             st.rerun()
     else:
-        st.warning("라인업 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
+        st.warning("전략판 수정 권한이 없습니다. 관리자 모드로 접속하세요.")
