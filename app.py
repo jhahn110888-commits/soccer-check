@@ -19,7 +19,7 @@ st.markdown("""
 # --- API 설정 (본인의 구글 앱 스크립트 URL을 입력하세요) ---
 API_URL = "https://script.google.com/macros/s/AKfycbzYMf0rfazFlzLrGuzq6o4QH37Dgpp3p_7M91yNykTjuEN9C7sbYwWIrKKWj6P9LB4A/exec"
 
-st.title("⚽ FC DGIST 운영 시스템")
+st.title("⚽ D'fit 운영 시스템")
 
 # 1. 일정 및 인원 제한 설정
 MATCH_CONFIG = {
