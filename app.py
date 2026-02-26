@@ -5,7 +5,7 @@ import datetime
 import json
 
 # --- 설정 및 디자인 ---
-st.set_page_config(page_title="FC DGIST 통합 관리", layout="centered", page_icon="⚽")
+st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
 # CSS로 디자인 강화
 st.markdown("""
