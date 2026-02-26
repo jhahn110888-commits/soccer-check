@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 
 # --- 설정 (아까 복사한 웹 앱 URL을 여기에 넣으세요) ---
-API_URL = "여기에_아까_복사한_웹_앱_URL_붙여넣기"
+API_URL = "https://script.google.com/macros/s/AKfycbzyMz75oWHac-WiRPhuJFmFgQqRuKiqERx3PJ7JBPh5mZKKPIuI566lM8rBEjAXvJyOHw/exec"
 # -----------------------------------------------
 
 st.set_page_config(page_title="축구부 통합 관리", layout="centered")
