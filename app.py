@@ -55,12 +55,12 @@ confirmed_df = match_all_df.head(MAX_CAPACITY)
 waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
 # --- 4. 탭 구성 ---
-tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 세부 전략판"])
+tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
 
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("🙋 참석 신청")
+        st.subheader("🙋 신청")
         with st.form("add"):
             name = st.text_input("이름")
             if st.form_submit_button("참석"):
@@ -93,7 +93,7 @@ with tab1:
         st.table(df_w)
 
 with tab2:
-    st.header("📝 D'fit 쿼터별 세부 전략판")
+    st.header("📝 라인업")
     
     # 1. 쿼터 선택
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
@@ -148,21 +148,21 @@ with tab2:
         display_list = available.copy()
         if st.session_state[name_key] not in display_list: display_list.append(st.session_state[name_key])
         
-        with c1: sel_n = st.selectbox(f"{label} 이름", display_list, key=name_key)
-        with c2: sel_r = st.selectbox(f"{label} 역할", options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
+        with c1: sel_n = st.selectbox(f"{label}", display_list, key=name_key)
+        with c2: sel_r = st.selectbox(f"{label}", options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
         return f"{sel_n}|{sel_r}"
 
     pos_data = {}
-    st.subheader("🧤 골키퍼")
+    st.subheader("GK")
     pos_data['gk'] = q_role_box("GK", "gk", ["GK"])
     
-    st.subheader("🛡️ 수비수")
+    st.subheader("DF")
     for i in range(df_n): pos_data[f'df_{i+1}'] = q_role_box(f"DF {i+1}", f"df_{i+1}", ["LB", "LCB", "CB", "RCB", "RB"])
     
-    st.subheader("🏃 미드필더")
+    st.subheader("MF")
     for i in range(mf_n): pos_data[f'mf_{i+1}'] = q_role_box(f"MF {i+1}", f"mf_{i+1}", ["CAM", "LM", "CM", "RM", "CDM"])
     
-    st.subheader("⚽ 공격수")
+    st.subheader("FW")
     for i in range(fw_n): pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", ["ST", "CF", "LW", "RW"])
 
     if is_admin and st.button(f"💾 {q_choice} 저장"):
