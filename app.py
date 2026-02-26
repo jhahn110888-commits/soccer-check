@@ -74,7 +74,7 @@ with tab1:
             st.error("정원이 마감되었습니다.")
         else:
             with st.form("add_form", clear_on_submit=True):
-                name = st.text_input("이름", placeholder="실명을 입력하세요")
+                name = st.text_input("이름", placeholder="이름을 입력하세요")
                 if st.form_submit_button("참석 확정"):
                     if name.strip() == "":
                         st.warning("이름을 입력해주세요.")
@@ -90,7 +90,7 @@ with tab1:
     with sub_col2:
         st.subheader("🚫 신청 취소")
         with st.form("del_form", clear_on_submit=True):
-            del_name = st.text_input("취소할 이름")
+            del_name = st.text_input("이름")
             if st.form_submit_button("신청 취소"):
                 if del_name in current_match_df['이름'].values:
                     requests.post(API_URL, json={"action": "delete", "date": selected_match, "name": del_name})
@@ -217,7 +217,7 @@ with tab2: # 이전 코드에서 tab2로 통합된 전략판 부분
     pos_data['gk'] = position_box("GK", 'gk')
 
     st.divider()
-    if st.button("💾 이 라인업 저장하기"):
+    if st.button("💾 저장하기"):
         with st.spinner("구글 시트에 저장 중..."):
             requests.post(API_URL, json={
                 "action": "save_lineup",
