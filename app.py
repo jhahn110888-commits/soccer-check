@@ -14,7 +14,7 @@ credentials = {
     "usernames": {
         "admin": {
             "name": "master",
-            "password": "dfit" # 나중에 해싱될 예정
+            "password": "1234" # 나중에 해싱될 예정
         }
     }
 }
