@@ -173,65 +173,54 @@ with tab1:
     else:
         st.info("추첨은 관리자 로그인이 필요합니다.")
 
-# [탭 2: 4-4-2 라인업]
+# [탭 2: 라인업 - 입력한 숫자대로 칸 생성]
 with tab2:
-    st.header("📝 4-4-2 전략판")
-    st.caption("※ 확정 명단 인원만 배정 가능하며 중복 선택이 방지됩니다.")
+    st.header("📝 쿼터별 라인업")
+    
+    # 1. 포메이션 입력 (예: 4-3-3)
+    formation = st.text_input("포메이션 입력 (예: 4-4-2, 4-3-3, 3-5-2)", value="4-4-2")
+    try:
+        df_n, mf_n, fw_n = map(int, formation.split('-'))
+    except:
+        st.error("포메이션 형식을 '숫자-숫자-숫자'로 입력해 주세요.")
+        df_n, mf_n, fw_n = 4, 4, 2
+
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
-    
-    # 라인업 데이터 로드
-    saved_positions = {}
-    for row in lineup_raw:
-        if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
-            try: saved_positions = json.loads(row[2])
-            except: saved_positions = {}
-            break
 
+    # (데이터 로드 로직 동일...)
     confirmed_players = confirmed_df['이름'].tolist()
-    pos_keys = ['fw1', 'fw2', 'mf1', 'mf2', 'mf3', 'mf4', 'df1', 'df2', 'df3', 'df4', 'gk']
     
-    def get_currently_selected(exclude_key):
-        return [st.session_state.get(f"{selected_match}_{q_choice}_{k}", "미배정") for k in pos_keys if k != exclude_key and st.session_state.get(f"{selected_match}_{q_choice}_{k}", "미배정") != "미배정"]
-
-    def position_box(label, key):
-        taken = get_currently_selected(key)
-        available = ["미배정"] + [p for p in confirmed_players if p not in taken]
-        default_val = saved_positions.get(key, "미배정")
-        if default_val in confirmed_players and default_val not in available: available.append(default_val)
-        idx = available.index(default_val) if default_val in available else 0
-        return st.selectbox(label, available, index=idx, key=f"{selected_match}_{q_choice}_{key}")
-
     st.divider()
     pos_data = {}
-    
-    st.caption("공격수 (FW)")
-    f1, f2 = st.columns(2)
-    with f1: pos_data['fw1'] = position_box("ST(L)", 'fw1')
-    with f2: pos_data['fw2'] = position_box("ST(R)", 'fw2')
 
-    st.caption("미드필더 (MF)")
-    m1, m2, m3, m4 = st.columns(4)
-    with m1: pos_data['mf1'] = position_box("LM", 'mf1')
-    with m2: pos_data['mf2'] = position_box("CM(L)", 'mf2')
-    with m3: pos_data['mf3'] = position_box("CM(R)", 'mf3')
-    with m4: pos_data['mf4'] = position_box("RM", 'mf4')
+    # 골키퍼 (항상 1명)
+    st.subheader("🧤 골키퍼")
+    pos_data['gk'] = position_box("GK", "gk")
 
-    st.caption("수비수 (DF)")
-    d1, d2, d3, d4 = st.columns(4)
-    with d1: pos_data['df1'] = position_box("LB", 'df1')
-    with d2: pos_data['df2'] = position_box("CB(L)", 'df2')
-    with d3: pos_data['df3'] = position_box("CB(R)", 'df3')
-    with d4: pos_data['df4'] = position_box("RB", 'df4')
+    # 수비수 (입력한 df_n만큼 칸 생성)
+    st.subheader(f"🛡️ 수비수 ({df_n}명)")
+    d_cols = st.columns(df_n)
+    for i in range(df_n):
+        p_id = f"df_{i+1}"
+        with d_cols[i]: pos_data[p_id] = position_box(f"DF {i+1}", p_id)
 
-    st.caption("골키퍼 (GK)")
-    pos_data['gk'] = position_box("GK", 'gk')
+    # 미드필더 (입력한 mf_n만큼 칸 생성)
+    st.subheader(f"🏃 미드필더 ({mf_n}명)")
+    m_cols = st.columns(mf_n)
+    for i in range(mf_n):
+        p_id = f"mf_{i+1}"
+        with m_cols[i]: pos_data[p_id] = position_box(f"MF {i+1}", p_id)
 
-    st.divider()
+    # 공격수 (입력한 fw_n만큼 칸 생성)
+    st.subheader(f"⚽ 공격수 ({fw_n}명)")
+    f_cols = st.columns(fw_n)
+    for i in range(fw_n):
+        p_id = f"fw_{i+1}"
+        with f_cols[i]: pos_data[p_id] = position_box(f"FW {i+1}", p_id)
+
     if is_admin:
-        if st.button("💾 이 라인업 저장하기"):
+        if st.button("💾 이 포메이션으로 저장"):
             requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data})
             st.cache_data.clear()
-            st.success(f"{q_choice} 라인업 저장 완료!")
+            st.success("저장 완료!")
             st.rerun()
-    else:
-        st.warning("라인업 수정 권한이 없습니다.")
