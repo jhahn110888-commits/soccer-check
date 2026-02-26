@@ -68,7 +68,7 @@ MATCH_CONFIG = {
     "2026-03-26 (목) 달성 스포츠 파크": 20
 }
 
-st.title("⚽ D'fit 운영 시스템")
+st.title("⚽ D'fit")
 selected_match = st.selectbox("📅 경기 일정을 선택하세요", list(MATCH_CONFIG.keys()))
 MAX_CAPACITY = MATCH_CONFIG[selected_match]
 
@@ -185,7 +185,7 @@ with tab1:
 
 # [탭 2: 세부 포지션 선택형 가변 전략판]
 with tab2:
-    st.header("📝 D'fit 세부 전략판")
+    st.header("📝 라인업")
     
     formation = st.text_input("포메이션 입력 (예: 4-4-2, 4-3-3)", value="4-4-2")
     try:
@@ -207,8 +207,8 @@ with tab2:
     
     # --- 세부 포지션 옵션 정의 ---
     DF_ROLES = ["LB", "LCB", "CB", "RCB", "RB", "LWB", "RWB"]
-    MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM", "LAM", "RAM"]
-    FW_ROLES = ["ST", "CF", "LW", "RW", "LS", "RS", "LF", "RF"]
+    MF_ROLES = ["CAM", "LM", "CM", "RM", "CDM"]
+    FW_ROLES = ["ST", "CF", "LW", "RW"]
 
     # --- 수정된 position_box 함수 (이름 + 포지션 조합) ---
     def role_position_box(label_prefix, p_id, role_options):
@@ -231,7 +231,7 @@ with tab2:
         
         with col_role:
             role_idx = role_options.index(s_role) if s_role in role_options else 0
-            sel_role = st.selectbox(f"{label_prefix} 역할", role_options, index=role_idx, key=f"{prefix}{p_id}_role")
+            sel_role = st.selectbox(f"{label_prefix}", role_options, index=role_idx, key=f"{prefix}{p_id}_role")
             
         return f"{sel_name}|{sel_role}"
 
@@ -239,31 +239,31 @@ with tab2:
     pos_data = {}
 
     # 1. 골키퍼
-    st.subheader("🧤 골키퍼")
+    st.subheader("GK")
     pos_data['gk'] = role_position_box("GK", "gk", ["GK"])
 
     # 2. 수비수
-    st.subheader(f"🛡️ 수비수 ({df_n}명)")
+    st.subheader(f"DF")
     for i in range(df_n):
         p_id = f"df_{i+1}"
         pos_data[p_id] = role_position_box(f"DF {i+1}", p_id, DF_ROLES)
 
     # 3. 미드필더
-    st.subheader(f"🏃 미드필더 ({mf_n}명)")
+    st.subheader(f"MF")
     for i in range(mf_n):
         p_id = f"mf_{i+1}"
         pos_data[p_id] = role_position_box(f"MF {i+1}", p_id, MF_ROLES)
 
     # 4. 공격수
-    st.subheader(f"⚽ 공격수 ({fw_n}명)")
+    st.subheader(f"FW")
     for i in range(fw_n):
         p_id = f"fw_{i+1}"
         pos_data[p_id] = role_position_box(f"FW {i+1}", p_id, FW_ROLES)
 
     if is_admin:
         st.divider()
-        if st.button("💾 세부 라인업 저장"):
+        if st.button("💾 라인업 저장"):
             requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data})
             st.cache_data.clear()
-            st.success(f"{q_choice} 세부 라인업 저장 완료!")
+            st.success(f"{q_choice} 라인업 저장 완료!")
             st.rerun()
