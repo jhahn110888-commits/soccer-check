@@ -106,54 +106,87 @@ with tab1:
         st.write("아직 신청자가 없습니다.")
 
 # [탭 2: 쿼터별 라인업 (날짜/쿼터 연동 저장)]
-with tab2:
+# [탭 3: 쿼터별 라인업 - 중복 배정 방지 로직 추가]
+with tab2: # 이전 코드에서 tab2로 통합된 전략판 부분
     st.header("📝 쿼터별 전략판")
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
     
-    # 해당 날짜 & 쿼터의 저장된 라인업 찾기
+    # 1. 저장된 라인업 불러오기
     saved_positions = {}
     for row in lineup_raw:
         if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
-            try:
-                saved_positions = json.loads(row[2])
-            except:
-                saved_positions = {}
+            try: saved_positions = json.loads(row[2])
+            except: saved_positions = {}
             break
 
-    player_list = ["미배정"] + current_match_df['이름'].tolist()
+    # 2. 현재 해당 쿼터에서 선택된 모든 이름 추적 (실시간 반영을 위해 session_state 활용)
+    # 초기화
+    pos_keys = ['fw1', 'fw2', 'mf1', 'mf2', 'mf3', 'mf4', 'df1', 'df2', 'df3', 'df4', 'gk']
+    all_players = current_match_df['이름'].tolist()
     
     st.divider()
     st.subheader(f"🏟️ {selected_match} - {q_choice}")
 
-    pos_data = {}
-    # 포지션 선택 UI (저장된 값이 있으면 불러오고, 없으면 미배정)
-    def get_index(pos_key):
-        val = saved_positions.get(pos_key, "미배정")
-        return player_list.index(val) if val in player_list else 0
+    # 현재 화면상에서 선택된 사람들을 모으는 함수
+    def get_currently_selected(exclude_key):
+        selected = []
+        for k in pos_keys:
+            if k != exclude_key:
+                val = st.session_state.get(f"{selected_match}_{q_choice}_{k}", "미배정")
+                if val != "미배정":
+                    selected.append(val)
+        return selected
 
+    pos_data = {}
+    
+    # 포지션 배치 UI 구성
+    # 각 포지션마다 다른 포지션에서 선택된 사람을 제외한 목록을 보여줌
+    def position_box(label, key):
+        already_taken = get_currently_selected(key)
+        # 현재 명단에서 이미 선점된 사람 제외
+        available_options = ["미배정"] + [p for p in all_players if p not in already_taken]
+        
+        # 기본값 설정 (저장된 값이 명단에 없으면 미배정)
+        default_val = saved_positions.get(key, "미배정")
+        if default_val not in available_options:
+            # 만약 저장된 사람이 다른 곳에 배정되어 있다면 미배정으로 표시하거나, 
+            # 목록에 강제로 추가(현재 자기 자리니까)
+            if default_val in all_players:
+                available_options.append(default_val)
+                available_options = sorted(list(set(available_options)), key=lambda x: (x != "미배정", x))
+        
+        try:
+            idx = available_options.index(default_val)
+        except ValueError:
+            idx = 0
+            
+        return st.selectbox(label, available_options, index=idx, key=f"{selected_match}_{q_choice}_{key}")
+
+    # --- 화면 배치 ---
     st.caption("공격수 (FW)")
     f1, f2 = st.columns(2)
-    pos_data['fw1'] = f1.selectbox("ST(L)", player_list, index=get_index('fw1'), key=f"fw1_{selected_match}_{q_choice}")
-    pos_data['fw2'] = f2.selectbox("ST(R)", player_list, index=get_index('fw2'), key=f"fw2_{selected_match}_{q_choice}")
+    pos_data['fw1'] = position_box("ST(L)", 'fw1')
+    pos_data['fw2'] = position_box("ST(R)", 'fw2')
 
     st.caption("미드필더 (MF)")
     m1, m2, m3, m4 = st.columns(4)
-    pos_data['mf1'] = m1.selectbox("LM", player_list, index=get_index('mf1'), key=f"mf1_{selected_match}_{q_choice}")
-    pos_data['mf2'] = m2.selectbox("CM(L)", player_list, index=get_index('mf2'), key=f"mf2_{selected_match}_{q_choice}")
-    pos_data['mf3'] = m3.selectbox("CM(R)", player_list, index=get_index('mf3'), key=f"mf3_{selected_match}_{q_choice}")
-    pos_data['mf4'] = m4.selectbox("RM", player_list, index=get_index('mf4'), key=f"mf4_{selected_match}_{q_choice}")
+    pos_data['mf1'] = position_box("LM", 'mf1')
+    pos_data['mf2'] = position_box("CM(L)", 'mf2')
+    pos_data['mf3'] = position_box("CM(R)", 'mf3')
+    pos_data['mf4'] = position_box("RM", 'mf4')
 
     st.caption("수비수 (DF)")
     d1, d2, d3, d4 = st.columns(4)
-    pos_data['df1'] = d1.selectbox("LB", player_list, index=get_index('df1'), key=f"df1_{selected_match}_{q_choice}")
-    pos_data['df2'] = d2.selectbox("CB(L)", player_list, index=get_index('df2'), key=f"df2_{selected_match}_{q_choice}")
-    pos_data['df3'] = d3.selectbox("CB(R)", player_list, index=get_index('df3'), key=f"df3_{selected_match}_{q_choice}")
-    pos_data['df4'] = d4.selectbox("RB", player_list, index=get_index('df4'), key=f"df4_{selected_match}_{q_choice}")
+    pos_data['df1'] = position_box("LB", 'df1')
+    pos_data['df2'] = position_box("CB(L)", 'df2')
+    pos_data['df3'] = position_box("CB(R)", 'df3')
+    pos_data['df4'] = position_box("RB", 'df4')
 
     st.caption("골키퍼 (GK)")
-    pos_data['gk'] = st.selectbox("GK", player_list, index=get_index('gk'), key=f"gk_{selected_match}_{q_choice}")
+    pos_data['gk'] = position_box("GK", 'gk')
 
-    if st.button("💾 현재 라인업 저장하기"):
+    st.divider()
+    if st.button("💾 이 라인업 저장하기"):
         with st.spinner("구글 시트에 저장 중..."):
             requests.post(API_URL, json={
                 "action": "save_lineup",
@@ -162,5 +195,5 @@ with tab2:
                 "positions": pos_data
             })
             st.cache_data.clear()
-            st.success("라인업이 저장되었습니다! 부원들도 이제 이 화면을 볼 수 있습니다.")
+            st.success("저장되었습니다!")
             st.rerun()
