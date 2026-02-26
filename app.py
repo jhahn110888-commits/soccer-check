@@ -13,8 +13,8 @@ st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_ico
 credentials = {
     "usernames": {
         "admin": {
-            "name": "Master Admin",
-            "password": "dfit1234" # 나중에 해싱될 예정
+            "name": "master",
+            "password": "dfit" # 나중에 해싱될 예정
         }
     }
 }
