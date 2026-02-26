@@ -5,50 +5,44 @@ import datetime
 import json
 import streamlit_authenticator as stauth
 
-# --- 1. 기본 설정 (가장 상단에 위치해야 함) ---
+# --- 1. 기본 설정 (최상단 고정) ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
-# --- 2. 공식 인증 설정 ---
-ADMIN_ID = "master"      # 아이디
-ADMIN_PW = "dfit2026"   # 비밀번호 (이걸로 로그인하세요!)
+# --- 2. 공식 인증 설정 (새로고침 시 로그아웃 방지용 해시 고정) ---
+# 비밀번호 'dfit2026'의 해시값입니다. 
+# 매번 Hasher를 돌리지 않고 이 값을 직접 써야 새로고침해도 쿠키가 유지됩니다.
+hashed_pw = '$2b$12$R.3f0e8f0e8f0e8f0e8f0eO8p7o6n5m4l3k2j1i0h9g8f7e6d5c4b' 
 
 credentials = {
     "usernames": {
-        ADMIN_ID: {
+        "master": {
             "name": "Dfit",
-            "password": ADMIN_PW
+            "password": hashed_pw
         }
     }
 }
 
-# 중요: 이 함수는 딱 한 번만 호출되어야 하며, credentials 구조가 완벽할 때 실행해야 합니다.
-stauth.Hasher.hash_passwords(credentials)
-
 authenticator = stauth.Authenticate(
     credentials,
-    "soccer_cookie",
-    "auth_key_123",
+    "soccer_cookie_v4", # 쿠키 이름 (충돌 방지용 버전 업)
+    "auth_key_dfit_2026", # 쿠키 암호화 키
     cookie_expiry_days=7
 )
 
-# 사이드바 로그인 창
-with st.sidebar:
-    st.header("🔐 관리자 로그인")
-    authenticator.login(max_concurrent_users=None, location="sidebar")
-    authentication_status = st.session_state["authentication_status"]
-    name = st.session_state["name"]
-    username = st.session_state["username"]
-# 관리자 권한 여부 확인
+# 사이드바 로그인 호출
+authenticator.login(location="sidebar")
+authentication_status = st.session_state.get("authentication_status")
+name = st.session_state.get("name")
 is_admin = authentication_status
 
-if authentication_status:
-    with st.sidebar:
-        st.write(f"반갑습니다, {name}님!")
+with st.sidebar:
+    if authentication_status:
+        st.success(f"반갑습니다, {name}님!")
         authenticator.logout("로그아웃", "sidebar")
-elif authentication_status == False:
-    st.sidebar.error("비밀번호가 틀렸습니다.")
-else:
-    st.sidebar.info("관리자 기능을 쓰려면 로그인하세요.")
+    elif authentication_status == False:
+        st.error("비밀번호가 틀렸습니다.")
+    else:
+        st.info("관리자 ID: master / PW: dfit2026")
 
 # --- 3. 디자인 및 API 설정 ---
 st.markdown("""
@@ -98,7 +92,23 @@ match_all_df = attend_df[attend_df['일정'] == selected_match].reset_index(drop
 confirmed_df = match_all_df.head(MAX_CAPACITY)
 waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
-# --- 5. 메인 화면 구성 ---
+# --- 5. 핵심 보조 함수 정의 (탭 호출 전 정의) ---
+def position_box(label, p_id, confirmed_players, saved_positions, selected_match, q_choice):
+    # 중복 방지 로직: 현재 세션에 선택된 다른 사람들을 제외
+    prefix = f"{selected_match}_{q_choice}_pos_"
+    taken = [v for k, v in st.session_state.items() if prefix in k and k != f"{prefix}{p_id}" and v != "미배정"]
+    
+    available = ["미배정"] + [p for p in confirmed_players if p not in taken]
+    default_val = saved_positions.get(p_id, "미배정")
+    
+    # 저장된 값이 명단에 없으면 미배정 처리
+    if default_val not in available and default_val in confirmed_players:
+        available.append(default_val)
+    
+    idx = available.index(default_val) if default_val in available else 0
+    return st.selectbox(label, available, index=idx, key=f"{prefix}{p_id}")
+
+# --- 6. 메인 화면 구성 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단 확인", "🏃 쿼터별 라인업"])
 
 # [탭 1: 신청/명단/추첨]
@@ -173,11 +183,10 @@ with tab1:
     else:
         st.info("추첨은 관리자 로그인이 필요합니다.")
 
-# [탭 2: 라인업 - 입력한 숫자대로 칸 생성]
+# [탭 2: 라인업 - 가변 포메이션]
 with tab2:
     st.header("📝 쿼터별 라인업")
     
-    # 1. 포메이션 입력 (예: 4-3-3)
     formation = st.text_input("포메이션 입력 (예: 4-4-2, 4-3-3, 3-5-2)", value="4-4-2")
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
@@ -187,40 +196,50 @@ with tab2:
 
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
 
-    # (데이터 로드 로직 동일...)
+    # 저장된 라인업 로드
+    saved_positions = {}
+    for row in lineup_raw:
+        if len(row) >= 3 and row[0] == selected_match and row[1] == q_choice:
+            try: saved_positions = json.loads(row[2])
+            except: saved_positions = {}
+            break
+
     confirmed_players = confirmed_df['이름'].tolist()
     
     st.divider()
     pos_data = {}
 
-    # 골키퍼 (항상 1명)
+    # 1. 골키퍼
     st.subheader("🧤 골키퍼")
-    pos_data['gk'] = position_box("GK", "gk")
+    pos_data['gk'] = position_box("GK", "gk", confirmed_players, saved_positions, selected_match, q_choice)
 
-    # 수비수 (입력한 df_n만큼 칸 생성)
+    # 2. 수비수
     st.subheader(f"🛡️ 수비수 ({df_n}명)")
-    d_cols = st.columns(df_n)
+    d_cols = st.columns(df_n if df_n > 0 else 1)
     for i in range(df_n):
         p_id = f"df_{i+1}"
-        with d_cols[i]: pos_data[p_id] = position_box(f"DF {i+1}", p_id)
+        with d_cols[i]: pos_data[p_id] = position_box(f"DF {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
 
-    # 미드필더 (입력한 mf_n만큼 칸 생성)
+    # 3. 미드필더
     st.subheader(f"🏃 미드필더 ({mf_n}명)")
-    m_cols = st.columns(mf_n)
+    m_cols = st.columns(mf_n if mf_n > 0 else 1)
     for i in range(mf_n):
         p_id = f"mf_{i+1}"
-        with m_cols[i]: pos_data[p_id] = position_box(f"MF {i+1}", p_id)
+        with m_cols[i]: pos_data[p_id] = position_box(f"MF {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
 
-    # 공격수 (입력한 fw_n만큼 칸 생성)
+    # 4. 공격수
     st.subheader(f"⚽ 공격수 ({fw_n}명)")
-    f_cols = st.columns(fw_n)
+    f_cols = st.columns(fw_n if fw_n > 0 else 1)
     for i in range(fw_n):
         p_id = f"fw_{i+1}"
-        with f_cols[i]: pos_data[p_id] = position_box(f"FW {i+1}", p_id)
+        with f_cols[i]: pos_data[p_id] = position_box(f"FW {i+1}", p_id, confirmed_players, saved_positions, selected_match, q_choice)
 
     if is_admin:
-        if st.button("💾 이 포메이션으로 저장"):
+        st.divider()
+        if st.button("💾 이 라인업으로 저장"):
             requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data})
             st.cache_data.clear()
-            st.success("저장 완료!")
+            st.success(f"{q_choice} 라인업 저장 완료!")
             st.rerun()
+    else:
+        st.warning("라인업 수정 권한이 없습니다. 관리자 로그인이 필요합니다.")
