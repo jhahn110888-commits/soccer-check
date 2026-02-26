@@ -71,7 +71,7 @@ with tab1:
         st.error("🚨 본 경기는 선착순 마감되었습니다.")
     else:
         with st.form("add_form", clear_on_submit=True):
-            name = st.text_input("이름 입력", placeholder="성함을 입력해주세요")
+            name = st.text_input("이름 입력", placeholder="이름을 입력해주세요")
             if st.form_submit_button("지금 바로 신청하기"):
                 if name.strip() == "":
                     st.warning("이름을 입력해주세요.")
