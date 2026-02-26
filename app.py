@@ -111,6 +111,32 @@ with tab1:
     else:
         st.write("아직 신청자가 없습니다.")
 
+    # (기존 확정 명단 표 아래에 추가)
+    st.divider()
+    st.subheader("🧺 오늘 조끼 빨 사람?")
+    
+    if not current_match_df.empty:
+        # 세션 상태를 사용해서 버튼을 눌러도 당첨자가 바로 바뀌지 않게 고정할 수 있습니다.
+        if 'laundry_hero' not in st.session_state:
+            st.session_state.laundry_hero = None
+
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            if st.button("🎰 랜덤 추첨하기"):
+                import random
+                # 현재 신청자 명단에서 랜덤 추출
+                winner = random.choice(current_match_df['이름'].tolist())
+                st.session_state.laundry_hero = winner
+                st.balloons() # 축하 풍선 효과!
+
+        with col2:
+            if st.session_state.laundry_hero:
+                st.markdown(f"### 🎉 당첨자: **{st.session_state.laundry_hero}** 님!")
+                st.write("축하합니다! 깨끗한 조끼 부탁드려요. 😉")
+            else:
+                st.write("버튼을 눌러 당번을 정해주세요.")
+    else:
+        st.write("신청자가 있어야 당번을 뽑을 수 있습니다.")
 # [탭 2: 쿼터별 라인업 (날짜/쿼터 연동 저장)]
 with tab2: # 이전 코드에서 tab2로 통합된 전략판 부분
     st.header("📝 쿼터별 라인업")
@@ -202,29 +228,4 @@ with tab2: # 이전 코드에서 tab2로 통합된 전략판 부분
             st.cache_data.clear()
             st.success("저장되었습니다!")
             st.rerun()
-    # (기존 확정 명단 표 아래에 추가)
-    st.divider()
-    st.subheader("🧺 오늘 조끼 빨아갈 사람?")
-    
-    if not current_match_df.empty:
-        # 세션 상태를 사용해서 버튼을 눌러도 당첨자가 바로 바뀌지 않게 고정할 수 있습니다.
-        if 'laundry_hero' not in st.session_state:
-            st.session_state.laundry_hero = None
 
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            if st.button("🎰 랜덤 추첨하기"):
-                import random
-                # 현재 신청자 명단에서 랜덤 추출
-                winner = random.choice(current_match_df['이름'].tolist())
-                st.session_state.laundry_hero = winner
-                st.balloons() # 축하 풍선 효과!
-
-        with col2:
-            if st.session_state.laundry_hero:
-                st.markdown(f"### 🎉 당첨자: **{st.session_state.laundry_hero}** 님!")
-                st.write("축하합니다! 깨끗한 조끼 부탁드려요. 😉")
-            else:
-                st.write("버튼을 눌러 당번을 정해주세요.")
-    else:
-        st.write("신청자가 있어야 당번을 뽑을 수 있습니다.")
