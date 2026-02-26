@@ -132,14 +132,18 @@ with tab1:
         else:
             st.info("취소는 관리자 모드에서 가능합니다.")
 
-    st.divider()
     m_c1, m_c2 = st.columns(2)
     with m_c1:
         st.subheader("✅ 확정 명단")
-        st.table(confirmed_df[['이름']].reset_index(drop=True))
+        df_c = confirmed_df[['이름']].reset_index(drop=True)
+        df_c.index += 1 
+        st.table(df_c)
+        
     with m_c2:
         st.subheader("⏳ 예비 명단")
-        st.table(waiting_df[['이름']].reset_index(drop=True))
+        df_w = waiting_df[['이름']].reset_index(drop=True)
+        df_w.index += 1
+        st.table(df_w)
 
     if is_admin:
         st.divider()
