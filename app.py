@@ -4,7 +4,7 @@ import requests
 import datetime
 
 # --- 설정 및 디자인 테마 ---
-st.set_page_config(page_title="FC DGIST 신청 시스템", layout="centered", page_icon="⚽")
+st.set_page_config(page_title="D'fit 신청 시스템", layout="centered", page_icon="⚽")
 
 # CSS 주입으로 버튼 디자인 변경
 st.markdown("""
@@ -27,7 +27,7 @@ st.markdown("""
 # --- API 설정 ---
 API_URL = "https://script.google.com/macros/s/AKfycbzyMz75oWHac-WiRPhuJFmFgQqRuKiqERx3PJ7JBPh5mZKKPIuI566lM8rBEjAXvJyOHw/exec"
 
-st.title("⚽ FC DGIST 참석 관리")
+st.title("⚽ D'fit 일정 및 참석 관리")
 st.caption("실시간 선착순 매치 신청 시스템")
 
 MATCH_CONFIG = {
