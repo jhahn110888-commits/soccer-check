@@ -67,14 +67,14 @@ def draw_pitch(positions_data):
 
     fig = go.Figure()
     
-    # 경기장 (세로형)
-    fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
-    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white")
-    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white")
+    # 🚨 [해결책] layer="below"를 추가해서 잔디밭을 맨 밑으로 뺍니다!
+    fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2, layer="below")
+    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2, layer="below")
+    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2, layer="below")
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white", layer="below")
+    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white", layer="below")
 
-    # 패턴 매칭으로 좌표 배분 (키값 대소문자 무시)
+    # 패턴 매칭으로 좌표 배분 (대소문자 무시)
     coords = {}
     gk_keys = [k for k in positions_data.keys() if 'gk' in str(k).lower()]
     df_keys = sorted([k for k in positions_data.keys() if 'df' in str(k).lower()])
@@ -104,14 +104,14 @@ def draw_pitch(positions_data):
             textfont=dict(color="white", size=14), showlegend=False
         ))
     else:
-        fig.add_annotation(x=50, y=50, text="라인업을 저장해주세요", showarrow=False, font=dict(color="white", size=16))
+        fig.add_annotation(x=50, y=50, text="데이터는 읽었으나 그릴 선수가 없습니다", showarrow=False, font=dict(color="white", size=16))
 
     fig.update_layout(width=450, height=650, margin=dict(l=10, r=10, t=10, b=10),
                       xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
                       yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
-
+    
 # --- 4. 탭 구성 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
 
