@@ -5,13 +5,18 @@ import datetime
 import json
 import plotly.graph_objects as go
 
-# --- 1. 기본 설정 ---
+# --- 1. 기본 설정 및 보안 (순서 중요!) ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
+# [보안] is_admin 정의를 최상단으로 올렸습니다.
 try:
     ADMIN_PW = st.secrets["admin_password"]
 except:
     ADMIN_PW = "test1234"
+
+# URL 파라미터에서 비번 확인 (?pw=dfit2026 형태)
+user_pw = st.query_params.get("pw", "")
+is_admin = (user_pw == ADMIN_PW)
 
 with st.sidebar:
     if is_admin:
@@ -22,7 +27,7 @@ with st.sidebar:
     else:
         st.warning("일반 사용자 모드")
 
-# --- 3. API 및 데이터 로드 ---
+# --- 2. API 및 데이터 로드 ---
 API_URL = "https://script.google.com/macros/s/AKfycbyaZjCt2UAxIvk3xaPKgF2LrS7Su23kaco26KG3AwdcZ2hX8bLHYfvG_1zIVP6S5fK6nA/exec"
 
 MATCH_CONFIG = {
@@ -55,6 +60,39 @@ attend_df, lineup_raw = get_all_data(API_URL)
 match_all_df = attend_df[attend_df['일정'] == selected_match].reset_index(drop=True)
 confirmed_df = match_all_df.head(MAX_CAPACITY)
 waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
+
+# --- 3. 전술판 시각화 함수 ---
+def draw_pitch(positions_data):
+    fig = go.Figure()
+    # 축구장 배경
+    fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white")
+    fig.add_shape(type="line", x0=50, y0=0, x1=50, y1=100, line_color="white") # 중앙선
+    fig.add_shape(type="circle", x0=40, y0=40, x1=60, y1=60, line_color="white") # 센터서클
+    
+    # 포지션 좌표 계산
+    coords = {'gk': [5, 50]}
+    for group, x_pos in [('df', 25), ('mf', 50), ('fw', 75)]:
+        p_list = [k for k in positions_data.keys() if group in k]
+        for i, k in enumerate(p_list):
+            coords[k] = [x_pos, (100 / (len(p_list) + 1)) * (i + 1)]
+
+    # 선수 배치
+    for p_id, info in positions_data.items():
+        if "|" in info:
+            name, role = info.split("|")
+            if name != "미배정" and p_id in coords:
+                x, y = coords[p_id]
+                fig.add_trace(go.Scatter(
+                    x=[x], y=[y], mode="markers+text",
+                    marker=dict(size=18, color="white", line=dict(width=2, color="navy")),
+                    text=[f"<b>{name}</b><br>{role}"], textposition="top center",
+                    textfont=dict(color="white", size=12), showlegend=False
+                ))
+
+    fig.update_layout(width=700, height=450, xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
+                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
+                      margin=dict(l=5, r=5, t=5, b=5), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    return fig
 
 # --- 4. 탭 구성 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
@@ -96,78 +134,67 @@ with tab1:
 
 with tab2:
     st.header("📝 라인업")
-    
-    # 1. 쿼터 선택
     q_choice = st.radio("쿼터 선택", ["1쿼터", "2쿼터", "3쿼터", "4쿼터"], horizontal=True)
     
-    # --- [데이터 로드 로직 보강] ---
     saved_positions = {}
-    saved_formation = "4-4-2"  # 기본값
+    saved_formation = "4-4-2"
     
-    # lineup_raw에서 현재 선택된 경기와 '정확한 쿼터'가 일치하는 행을 끝까지 찾습니다.
     for row in lineup_raw:
-        # row[0]: 날짜, row[1]: 쿼터, row[2]: 포지션JSON, row[3]: 포메이션
-        if len(row) >= 2:
-            # 공백이나 대소문자 차이로 안 읽힐 수 있으니 strip() 처리
-            if str(row[0]).strip() == selected_match.strip() and str(row[1]).strip() == q_choice.strip():
-                try:
-                    saved_positions = json.loads(row[2])
-                    # 포메이션 정보가 있다면 작은따옴표를 떼고 깨끗하게 가져옵니다.
-                    if len(row) >= 4:
-                        saved_formation = str(row[3]).replace("'", "").strip()
-                except Exception as e:
-                    pass
-                # 일치하는 쿼터를 찾았으면 루프를 중단합니다.
-                break 
+        if len(row) >= 2 and str(row[0]).strip() == selected_match.strip() and str(row[1]).strip() == q_choice.strip():
+            try:
+                saved_positions = json.loads(row[2])
+                if len(row) >= 4: saved_formation = str(row[3]).replace("'", "").strip()
+            except: pass
+            break 
 
-    # 2. 관리자/일반 모드에 따른 포메이션 설정
+    # [일반 모드 최적화] 관리자만 포메이션 수정 가능
     if is_admin:
         formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation, key=f"form_input_{q_choice}")
     else:
-        st.info(f"현재 {q_choice} 포메이션: **{saved_formation}**")
+        st.subheader(f"🏟️ {q_choice} 포메이션: {saved_formation}")
         formation = saved_formation
 
-    # 3. 포메이션 숫자 파싱
     try:
         df_n, mf_n, fw_n = map(int, formation.split('-'))
     except:
         df_n, mf_n, fw_n = 4, 4, 2
 
-    # 중복 제거 로직 함수
-    def q_role_box(label, p_id, options):
-        c1, c2 = st.columns([2, 1])
-        prefix = f"{selected_match}_{q_choice}"
-        name_key = f"{prefix}_{p_id}_name"
-        
-        taken = [v for k, v in st.session_state.items() if prefix in k and "_name" in k and k != name_key and v != "미배정"]
-        available = ["미배정"] + [p for p in confirmed_df['이름'].tolist() if p not in taken]
-        
-        saved_val = saved_positions.get(p_id, "미배정|")
-        s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
-        
-        if name_key not in st.session_state: st.session_state[name_key] = s_name
-        
-        display_list = available.copy()
-        if st.session_state[name_key] not in display_list: display_list.append(st.session_state[name_key])
-        
-        with c1: sel_n = st.selectbox(f"{label}", display_list, key=name_key)
-        with c2: sel_r = st.selectbox(f"{label}", options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
-        return f"{sel_n}|{sel_r}"
-
+    # 관리자 모드일 때만 선수 선택창 표시
     pos_data = {}
-    st.subheader("GK")
-    pos_data['gk'] = q_role_box("GK", "gk", ["GK"])
-    
-    st.subheader("DF")
-    for i in range(df_n): pos_data[f'df_{i+1}'] = q_role_box(f"DF {i+1}", f"df_{i+1}", ["LB", "LCB", "CB", "RCB", "RB"])
-    
-    st.subheader("MF")
-    for i in range(mf_n): pos_data[f'mf_{i+1}'] = q_role_box(f"MF {i+1}", f"mf_{i+1}", ["CAM", "LM", "CM", "RM", "CDM"])
-    
-    st.subheader("FW")
-    for i in range(fw_n): pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", ["ST", "CF", "LW", "RW"])
+    if is_admin:
+        def q_role_box(label, p_id, options):
+            c1, c2 = st.columns([2, 1])
+            prefix = f"{selected_match}_{q_choice}"
+            name_key = f"{prefix}_{p_id}_name"
+            taken = [v for k, v in st.session_state.items() if prefix in k and "_name" in k and k != name_key and v != "미배정"]
+            available = ["미배정"] + [p for p in confirmed_df['이름'].tolist() if p not in taken]
+            saved_val = saved_positions.get(p_id, "미배정|")
+            s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
+            if name_key not in st.session_state: st.session_state[name_key] = s_name
+            display_list = available.copy()
+            if st.session_state[name_key] not in display_list: display_list.append(st.session_state[name_key])
+            with c1: sel_n = st.selectbox(label, display_list, key=name_key)
+            with c2: sel_r = st.selectbox(label, options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
+            return f"{sel_n}|{sel_r}"
 
-    if is_admin and st.button(f"💾 {q_choice} 저장"):
-        requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data, "formation": formation})
-        st.cache_data.clear()
-        st.rerun()
+        st.subheader("GK")
+        pos_data['gk'] = q_role_box("GK", "gk", ["GK"])
+        st.subheader("DF")
+        for i in range(df_n): pos_data[f'df_{i+1}'] = q_role_box(f"DF {i+1}", f"df_{i+1}", ["LB", "LCB", "CB", "RCB", "RB"])
+        st.subheader("MF")
+        for i in range(mf_n): pos_data[f'mf_{i+1}'] = q_role_box(f"MF {i+1}", f"mf_{i+1}", ["CAM", "LM", "CM", "RM", "CDM"])
+        st.subheader("FW")
+        for i in range(fw_n): pos_data[f'fw_{i+1}'] = q_role_box(f"FW {i+1}", f"fw_{i+1}", ["ST", "CF", "LW", "RW"])
+
+        if st.button(f"💾 {q_choice} 저장"):
+            requests.post(API_URL, json={"action": "save_lineup", "date": selected_match, "quarter": q_choice, "positions": pos_data, "formation": formation})
+            st.cache_data.clear()
+            st.rerun()
+    else:
+        # 일반 사용자는 선택창 대신 저장된 데이터를 시각화용 데이터로 사용
+        pos_data = saved_positions
+
+    # 시각화 전술판 출력
+    if pos_data:
+        st.divider()
+        st.plotly_chart(draw_pitch(pos_data), use_container_width=True)
