@@ -228,4 +228,13 @@ with tab2:
     # 시각화 전술판 출력
     if pos_data:
         st.divider()
+        st.divider()
+        # 관리자는 실시간 메모리 데이터(pos_data), 부원은 서버 데이터(saved_positions)
+        display_data = pos_data if is_admin else saved_positions
+    
+        # [강력 디버깅] 데이터가 있는데 안 나온다면 이 텍스트가 힌트가 됩니다.
+        if not display_data or len(display_data) == 0:
+            st.error("데이터를 불러오지 못했습니다. [저장]을 먼저 해주세요.")
+        else:
+            st.plotly_chart(draw_pitch(display_data), use_container_width=False)
         st.plotly_chart(draw_pitch(pos_data), use_container_width=True)
