@@ -212,11 +212,6 @@ with tab2:
         pos_data = saved_positions
 
     st.divider()
-    
-    # 🚨 진짜 안 나올 때 원인을 파악하기 위한 디버그 패널 
-    with st.expander("🛠️ (확인용) 현재 그림판에 들어가는 데이터"):
-        st.write("서버에서 받은 데이터:", saved_positions)
-        st.write("그림으로 그릴 데이터:", pos_data)
-        
+            
     if pos_data:
         st.plotly_chart(draw_pitch(pos_data), use_container_width=False)
