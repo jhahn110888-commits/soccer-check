@@ -5,16 +5,14 @@ import datetime
 import json
 import plotly.graph_objects as go
 
-# --- 1. 기본 설정 및 보안 (순서 중요!) ---
+# --- 1. 기본 설정 및 보안 ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
-# [보안] is_admin 정의를 최상단으로 올렸습니다.
 try:
     ADMIN_PW = st.secrets["admin_password"]
 except:
     ADMIN_PW = "test1234"
 
-# URL 파라미터에서 비번 확인 (?pw=dfit2026 형태)
 user_pw = st.query_params.get("pw", "")
 is_admin = (user_pw == ADMIN_PW)
 
@@ -61,84 +59,66 @@ match_all_df = attend_df[attend_df['일정'] == selected_match].reset_index(drop
 confirmed_df = match_all_df.head(MAX_CAPACITY)
 waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
-# --- 3. 전술판 시각화 함수 ---
+# --- 3. [개선된] 전술판 시각화 함수 ---
 def draw_pitch(positions_data):
-    # 1. 데이터가 문자열이면 딕셔너리로 변환 (가장 빈번한 오류 원인)
+    # 데이터가 문자열이면 딕셔너리로 변환
     if isinstance(positions_data, str):
-        try:
-            positions_data = json.loads(positions_data)
-        except:
-            return go.Figure().add_annotation(text="데이터 파싱 에러", showarrow=False)
+        try: positions_data = json.loads(positions_data)
+        except: return go.Figure().add_annotation(text="데이터 오류", showarrow=False)
 
     fig = go.Figure()
     
-    # 경기장 배경 그리기
+    # 세로형 축구장 배경 (0~100)
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2) # 중앙선
-    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2) # 센터서클
+    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
+    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
     
-    # 골 박스 (하단/상단)
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white")
-    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white")
+    # 골대 및 박스
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white") # 하단
+    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white") # 상단
 
-    # 2. 좌표 설정 (데이터의 키값을 소문자로 변환해서 비교)
     coords = {}
     normalized_data = {str(k).lower(): v for k, v in positions_data.items()}
     
-    # GK 위치
+    # 좌표 분배 로직
     coords['gk'] = [50, 7]
-    
-    # DF, MF, FW 위치 분배
     for prefix, y_val in [('df', 28), ('mf', 53), ('fw', 78)]:
-        # 해당 포지션 키들을 추출 (df_1, df_2 등)
         p_keys = sorted([k for k in normalized_data.keys() if prefix in k])
         for i, k in enumerate(p_keys):
             x_val = (100 / (len(p_keys) + 1)) * (i + 1)
             coords[k] = [x_val, y_val]
 
-    # 3. 선수 점 찍기
-    x_final, y_final, label_final = [], [], []
-    
+    x_f, y_f, label_f = [], [], []
     for p_id, loc in coords.items():
         if p_id in normalized_data:
             info = normalized_data[p_id]
             if "|" in str(info):
                 name, role = str(info).split("|")
                 if name.strip() and name != "미배정":
-                    x_final.append(loc[0])
-                    y_final.append(loc[1])
-                    label_final.append(f"<b>{name}</b><br>{role}")
+                    x_f.append(loc[0]); y_f.append(loc[1])
+                    label_f.append(f"<b>{name}</b><br>{role}")
 
-    # 데이터가 있을 때만 Scatter 추가
-    if x_final:
+    if x_f:
         fig.add_trace(go.Scatter(
-            x=x_final, y=y_final,
-            mode="markers+text",
+            x=x_f, y=y_f, mode="markers+text",
             marker=dict(size=25, color="white", line=dict(width=3, color="navy")),
-            text=label_final,
-            textposition="top center",
-            textfont=dict(color="white", size=14, family="Arial Black"),
-            showlegend=False
+            text=label_f, textposition="top center",
+            textfont=dict(color="white", size=14, family="Arial Black"), showlegend=False
         ))
     else:
-        # 데이터가 없을 때의 경고창
-        fig.add_annotation(x=50, y=50, text="데이터가 비어있거나<br>형식이 맞지 않습니다", 
-                           showarrow=False, font=dict(color="white", size=16))
+        fig.add_annotation(x=50, y=50, text="저장된 라인업 데이터가 없습니다", showarrow=False, font=dict(color="white", size=15))
 
-    fig.update_layout(
-        width=450, height=650,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
-    )
+    fig.update_layout(width=450, height=650, margin=dict(l=10, r=10, t=10, b=10),
+                      xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
 
 # --- 4. 탭 구성 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
 
 with tab1:
+    # (기존 탭1 신청/명단 로직 - 생략 없이 그대로 유지하세요)
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("🙋 신청")
@@ -159,7 +139,6 @@ with tab1:
                     st.cache_data.clear()
                     st.rerun()
         else: st.info("관리자 전용")
-
     st.divider()
     m1, m2 = st.columns(2)
     with m1:
@@ -188,7 +167,6 @@ with tab2:
             except: pass
             break 
 
-    # [일반 모드 최적화] 관리자만 포메이션 수정 가능
     if is_admin:
         formation = st.text_input(f"{q_choice} 포메이션 설정", value=saved_formation, key=f"form_input_{q_choice}")
     else:
@@ -200,20 +178,24 @@ with tab2:
     except:
         df_n, mf_n, fw_n = 4, 4, 2
 
-    # 관리자 모드일 때만 선수 선택창 표시
+    # [핵심 수정] pos_data를 항상 정의
     pos_data = {}
     if is_admin:
         def q_role_box(label, p_id, options):
             c1, c2 = st.columns([2, 1])
             prefix = f"{selected_match}_{q_choice}"
             name_key = f"{prefix}_{p_id}_name"
+            # 중복 체크
             taken = [v for k, v in st.session_state.items() if prefix in k and "_name" in k and k != name_key and v != "미배정"]
             available = ["미배정"] + [p for p in confirmed_df['이름'].tolist() if p not in taken]
+            # 저장된 값 불러오기
             saved_val = saved_positions.get(p_id, "미배정|")
             s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
+            
             if name_key not in st.session_state: st.session_state[name_key] = s_name
             display_list = available.copy()
             if st.session_state[name_key] not in display_list: display_list.append(st.session_state[name_key])
+            
             with c1: sel_n = st.selectbox(label, display_list, key=name_key)
             with c2: sel_r = st.selectbox(label, options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
             return f"{sel_n}|{sel_r}"
@@ -232,9 +214,10 @@ with tab2:
             st.cache_data.clear()
             st.rerun()
     else:
-        # 일반 사용자는 선택창 대신 저장된 데이터를 시각화용 데이터로 사용
+        # 부원용 데이터 세팅
         pos_data = saved_positions
 
-    # 시각화 전술판 출력
+    # [핵심] 시각화 호출을 조건문 밖으로 뺌
     if pos_data:
         st.divider()
+        st.plotly_chart(draw_pitch(pos_data), use_container_width=False)
