@@ -11,7 +11,7 @@ st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_ico
 try:
     ADMIN_PW = st.secrets["admin_password"]
 except:
-    ADMIN_PW = "dfit2026"
+    ADMIN_PW = "passwordissecret"
 
 user_pw = st.query_params.get("pw", "")
 is_admin = (user_pw == ADMIN_PW)
@@ -30,7 +30,7 @@ API_URL = "https://script.google.com/macros/s/AKfycbyaZjCt2UAxIvk3xaPKgF2LrS7Su2
 
 MATCH_CONFIG = {
     "2026-02-27 (금) 달성 스포츠 파크": 21,    
-    "2026-03-04 (수) 교내 풋살": 14,    
+    "2026-03-04 (수) 달성 스포츠 파크": 21,    
     "2026-03-07 (토) 달성 스포츠 파크": 21,
     "2026-03-11 (수) 교내 풋살": 14,
     "2026-03-12 (목) 달성 스포츠 파크": 40,
