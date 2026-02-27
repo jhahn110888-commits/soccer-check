@@ -65,79 +65,56 @@ waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 def draw_pitch(positions_data):
     fig = go.Figure()
     
-    # 1. 축구장 배경 및 라인 (세로형 0~100)
-    # 전체 필드
+    # 1. 경기장 배경 (세로형)
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    
-    # 중앙선 및 센터서클
     fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
     fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
-
-    # --- [골대 및 박스 추가] ---
-    # 하단 페널티 박스 (우리 편)
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=15, line_color="white", line_width=2) # 큰 박스
-    fig.add_shape(type="rect", x0=35, y0=0, x1=65, y1=5, line_color="white", line_width=2)  # 소박스
-    # 하단 골대 라인
-    fig.add_shape(type="line", x0=40, y0=-2, x1=60, y1=-2, line_color="white", line_width=4)
-
-    # 상단 페널티 박스 (상대 편)
-    fig.add_shape(type="rect", x0=20, y0=85, x1=80, y1=100, line_color="white", line_width=2) # 큰 박스
-    fig.add_shape(type="rect", x0=35, y0=95, x1=65, y1=100, line_color="white", line_width=2) # 소박스
-    # 상단 골대 라인
-    fig.add_shape(type="line", x0=40, y0=102, x1=60, y1=102, line_color="white", line_width=4)
-
-    # 2. 포지션별 좌표 설정 (세로 배치 최적화)
-    coords = {}
     
-    # 골키퍼 (우리 편 골대 앞)
-    coords['gk'] = [50, 7]
+    # 골대 및 박스
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=15, line_color="white") # 하단 박스
+    fig.add_shape(type="rect", x0=20, y0=85, x1=80, y1=100, line_color="white") # 상단 박스
+
+    # 2. 좌표 설정
+    coords = {'gk': [50, 7]}
     
-    # 수비수 (우리 편 진영)
-    df_list = [k for k in positions_data.keys() if 'df_' in k]
-    for i, k in enumerate(df_list):
-        coords[k] = [(100 / (len(df_list) + 1)) * (i + 1), 25]
-        
-    # 미드필더 (중앙 지역)
-    mf_list = [k for k in positions_data.keys() if 'mf_' in k]
-    for i, k in enumerate(mf_list):
-        coords[k] = [(100 / (len(mf_list) + 1)) * (i + 1), 50]
-        
-    # 공격수 (상대 편 진영)
-    fw_list = [k for k in positions_data.keys() if 'fw_' in k]
-    for i, k in enumerate(fw_list):
-        coords[k] = [(100 / (len(fw_list) + 1)) * (i + 1), 75]
+    # DF, MF, FW 그룹별 좌표 자동 분배
+    for group, y_val in [('df', 25), ('mf', 50), ('fw', 75)]:
+        p_list = sorted([k for k in positions_data.keys() if group in k])
+        for i, k in enumerate(p_list):
+            coords[k] = [(100 / (len(p_list) + 1)) * (i + 1), y_val]
 
-    # 3. 선수 데이터 시각화
-    if positions_data:
-        x_coords, y_coords, names = [], [], []
-        for p_id, info in positions_data.items():
-            if "|" in info:
-                name, role = info.split("|")
-                if name != "미배정" and p_id in coords:
-                    x, y = coords[p_id]
-                    x_coords.append(x)
-                    y_coords.append(y)
-                    names.append(f"<b>{name}</b><br>{role}")
+    # 3. 선수 그리기
+    x_coords, y_coords, text_labels = [], [], []
+    
+    for p_id, info in positions_data.items():
+        if isinstance(info, str) and "|" in info:
+            name, role = info.split("|")
+            if name != "미배정" and p_id in coords:
+                x, y = coords[p_id]
+                x_coords.append(x)
+                y_coords.append(y)
+                text_labels.append(f"<b>{name}</b><br>{role}")
 
+    if x_coords:
         fig.add_trace(go.Scatter(
             x=x_coords, y=y_coords,
             mode="markers+text",
-            marker=dict(size=20, color="white", line=dict(width=3, color="navy")),
-            text=names,
+            marker=dict(size=22, color="white", line=dict(width=3, color="navy")),
+            text=text_labels,
             textposition="top center",
-            textfont=dict(color="white", size=13),
-            hoverinfo='none',
-            showlegend=False
+            textfont=dict(color="white", size=14),
+            hoverinfo='none', showlegend=False
         ))
+    else:
+        # 데이터가 없을 때 표시할 텍스트
+        fig.add_annotation(x=50, y=50, text="저장된 라인업 데이터가 없습니다", showarrow=False, font=dict(color="white", size=15))
 
-    # 레이아웃 설정 (세로 길게)
     fig.update_layout(
         width=450, height=650,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
         margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
