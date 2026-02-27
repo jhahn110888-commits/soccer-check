@@ -63,73 +63,65 @@ waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
 # --- 3. 전술판 시각화 함수 ---
 def draw_pitch(positions_data):
+    # 1. [핵심] 문자열로 들어온 경우 JSON 객체로 변환
+    if isinstance(positions_data, str):
+        try:
+            positions_data = json.loads(positions_data.replace("'", '"'))
+        except:
+            return go.Figure().add_annotation(text="데이터 형식 오류", showarrow=False)
+
     fig = go.Figure()
     
-    # 1. 축구장 배경 및 라인 (세로형)
-    # 필드
+    # 경기장 배경 (세로형)
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    # 중앙선 및 센터서클
     fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
     fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
-    # 골대 박스
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white") # 하단
-    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white") # 상단
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white") # 하단 박스
+    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white") # 상단 박스
 
-    # 2. [수정] 좌표 설정 로직 - 보내주신 키값(df_1, mf_1 등)을 정확히 매칭
+    # 2. 좌표 설정 (키값 매칭 강화)
     coords = {}
+    coords['gk'] = [50, 7]
     
-    # 골키퍼
-    coords['gk'] = [50, 6]
-    
-    # 그룹별로 키를 추출하여 가로로 정렬
-    groups = [('df_', 28), ('mf_', 55), ('fw_', 82)]
-    
-    for prefix, y_val in groups:
-        # 해당 접두사로 시작하는 키들을 찾아서 숫자 순서대로 정렬 (예: df_1, df_2...)
-        p_keys = sorted([k for k in positions_data.keys() if k.startswith(prefix)])
-        count = len(p_keys)
+    # 보내주신 키값 구조(df_1, mf_1...)에 맞춘 좌표 분배
+    for prefix, y_val in [('df_', 28), ('mf_', 53), ('fw_', 78)]:
+        p_keys = sorted([k for k in positions_data.keys() if str(k).startswith(prefix)])
         for i, k in enumerate(p_keys):
-            # 가로 좌표(x)를 인원수에 맞춰 균등 분할
-            x_val = (100 / (count + 1)) * (i + 1)
+            x_val = (100 / (len(p_keys) + 1)) * (i + 1)
             coords[k] = [x_val, y_val]
 
-    # 3. 선수 데이터 시각화
-    x_coords, y_coords, labels = [], [], []
+    # 3. 선수 그리기
+    x_list, y_list, text_list = [], [], []
     
     for p_id, info in positions_data.items():
-        if isinstance(info, str) and "|" in info:
-            name, role = info.split("|")
-            # 이름이 '미배정'이 아니고 좌표가 정의된 경우만 추가
+        if "|" in str(info):
+            name, role = str(info).split("|")
             if name != "미배정" and p_id in coords:
-                x_coords.append(coords[p_id][0])
-                y_coords.append(coords[p_id][1])
-                labels.append(f"<b>{name}</b><br>{role}")
+                x_list.append(coords[p_id][0])
+                y_list.append(coords[p_id][1])
+                text_list.append(f"<b>{name}</b><br>{role}")
 
-    # 선수 점 찍기
-    if x_coords:
+    if x_list:
         fig.add_trace(go.Scatter(
-            x=x_coords, y=y_coords,
+            x=x_list, y=y_list,
             mode="markers+text",
-            marker=dict(size=24, color="white", line=dict(width=3, color="navy")),
-            text=labels,
+            marker=dict(size=25, color="white", line=dict(width=3, color="navy")),
+            text=text_list,
             textposition="top center",
             textfont=dict(color="white", size=14, family="Arial Black"),
-            hoverinfo='none',
             showlegend=False
         ))
     else:
-        # 데이터가 비어있을 때 안내 문구
-        fig.add_annotation(x=50, y=50, text="표시할 선수 데이터가 없습니다.<br>선수를 배정하고 저장해 주세요.",
+        # 데이터가 비어있을 때
+        fig.add_annotation(x=50, y=50, text="선수를 배치하고<br>[저장] 버튼을 눌러주세요", 
                            showarrow=False, font=dict(color="white", size=16))
 
-    # 레이아웃 (세로형 고정)
     fig.update_layout(
         width=450, height=650,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+        xaxis={"showgrid": False, "zeroline": False, "showticklabels": False, "range": [-10, 110]},
+        yaxis={"showgrid": False, "zeroline": False, "showticklabels": False, "range": [-10, 110]},
         margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)"
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
