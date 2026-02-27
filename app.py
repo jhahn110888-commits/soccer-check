@@ -3,13 +3,15 @@ import pandas as pd
 import requests
 import datetime
 import json
+import 
 
 # --- 1. 기본 설정 ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
 
-# --- 2. URL 인증 (새로고침 방지) ---
-ADMIN_PW = "dfit2026"
-is_admin = (st.query_params.get("pw", "") == ADMIN_PW)
+try:
+    ADMIN_PW = st.secrets["admin_password"]
+except:
+    ADMIN_PW = "test1234"
 
 with st.sidebar:
     if is_admin:
