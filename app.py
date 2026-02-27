@@ -65,56 +65,71 @@ waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 def draw_pitch(positions_data):
     fig = go.Figure()
     
-    # 1. 경기장 배경 (세로형)
+    # 1. 축구장 배경 및 라인 (세로형)
+    # 필드
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
+    # 중앙선 및 센터서클
     fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
     fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
-    
-    # 골대 및 박스
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=15, line_color="white") # 하단 박스
-    fig.add_shape(type="rect", x0=20, y0=85, x1=80, y1=100, line_color="white") # 상단 박스
+    # 골대 박스
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white") # 하단
+    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white") # 상단
 
-    # 2. 좌표 설정
-    coords = {'gk': [50, 7]}
+    # 2. [수정] 좌표 설정 로직 - 보내주신 키값(df_1, mf_1 등)을 정확히 매칭
+    coords = {}
     
-    # DF, MF, FW 그룹별 좌표 자동 분배
-    for group, y_val in [('df', 25), ('mf', 50), ('fw', 75)]:
-        p_list = sorted([k for k in positions_data.keys() if group in k])
-        for i, k in enumerate(p_list):
-            coords[k] = [(100 / (len(p_list) + 1)) * (i + 1), y_val]
+    # 골키퍼
+    coords['gk'] = [50, 6]
+    
+    # 그룹별로 키를 추출하여 가로로 정렬
+    groups = [('df_', 28), ('mf_', 55), ('fw_', 82)]
+    
+    for prefix, y_val in groups:
+        # 해당 접두사로 시작하는 키들을 찾아서 숫자 순서대로 정렬 (예: df_1, df_2...)
+        p_keys = sorted([k for k in positions_data.keys() if k.startswith(prefix)])
+        count = len(p_keys)
+        for i, k in enumerate(p_keys):
+            # 가로 좌표(x)를 인원수에 맞춰 균등 분할
+            x_val = (100 / (count + 1)) * (i + 1)
+            coords[k] = [x_val, y_val]
 
-    # 3. 선수 그리기
-    x_coords, y_coords, text_labels = [], [], []
+    # 3. 선수 데이터 시각화
+    x_coords, y_coords, labels = [], [], []
     
     for p_id, info in positions_data.items():
         if isinstance(info, str) and "|" in info:
             name, role = info.split("|")
+            # 이름이 '미배정'이 아니고 좌표가 정의된 경우만 추가
             if name != "미배정" and p_id in coords:
-                x, y = coords[p_id]
-                x_coords.append(x)
-                y_coords.append(y)
-                text_labels.append(f"<b>{name}</b><br>{role}")
+                x_coords.append(coords[p_id][0])
+                y_coords.append(coords[p_id][1])
+                labels.append(f"<b>{name}</b><br>{role}")
 
+    # 선수 점 찍기
     if x_coords:
         fig.add_trace(go.Scatter(
             x=x_coords, y=y_coords,
             mode="markers+text",
-            marker=dict(size=22, color="white", line=dict(width=3, color="navy")),
-            text=text_labels,
+            marker=dict(size=24, color="white", line=dict(width=3, color="navy")),
+            text=labels,
             textposition="top center",
-            textfont=dict(color="white", size=14),
-            hoverinfo='none', showlegend=False
+            textfont=dict(color="white", size=14, family="Arial Black"),
+            hoverinfo='none',
+            showlegend=False
         ))
     else:
-        # 데이터가 없을 때 표시할 텍스트
-        fig.add_annotation(x=50, y=50, text="저장된 라인업 데이터가 없습니다", showarrow=False, font=dict(color="white", size=15))
+        # 데이터가 비어있을 때 안내 문구
+        fig.add_annotation(x=50, y=50, text="표시할 선수 데이터가 없습니다.<br>선수를 배정하고 저장해 주세요.",
+                           showarrow=False, font=dict(color="white", size=16))
 
+    # 레이아웃 (세로형 고정)
     fig.update_layout(
         width=450, height=650,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-5, 105]),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
         margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
