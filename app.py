@@ -63,65 +63,75 @@ waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
 # --- 3. 전술판 시각화 함수 ---
 def draw_pitch(positions_data):
-    # 1. [핵심] 문자열로 들어온 경우 JSON 객체로 변환
+    # 1. 데이터가 문자열이면 딕셔너리로 변환 (가장 빈번한 오류 원인)
     if isinstance(positions_data, str):
         try:
-            positions_data = json.loads(positions_data.replace("'", '"'))
+            positions_data = json.loads(positions_data)
         except:
-            return go.Figure().add_annotation(text="데이터 형식 오류", showarrow=False)
+            return go.Figure().add_annotation(text="데이터 파싱 에러", showarrow=False)
 
     fig = go.Figure()
     
-    # 경기장 배경 (세로형)
+    # 경기장 배경 그리기
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
-    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
-    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white") # 하단 박스
-    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white") # 상단 박스
+    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2) # 중앙선
+    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2) # 센터서클
+    
+    # 골 박스 (하단/상단)
+    fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white")
+    fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white")
 
-    # 2. 좌표 설정 (키값 매칭 강화)
+    # 2. 좌표 설정 (데이터의 키값을 소문자로 변환해서 비교)
     coords = {}
+    normalized_data = {str(k).lower(): v for k, v in positions_data.items()}
+    
+    # GK 위치
     coords['gk'] = [50, 7]
     
-    # 보내주신 키값 구조(df_1, mf_1...)에 맞춘 좌표 분배
-    for prefix, y_val in [('df_', 28), ('mf_', 53), ('fw_', 78)]:
-        p_keys = sorted([k for k in positions_data.keys() if str(k).startswith(prefix)])
+    # DF, MF, FW 위치 분배
+    for prefix, y_val in [('df', 28), ('mf', 53), ('fw', 78)]:
+        # 해당 포지션 키들을 추출 (df_1, df_2 등)
+        p_keys = sorted([k for k in normalized_data.keys() if prefix in k])
         for i, k in enumerate(p_keys):
             x_val = (100 / (len(p_keys) + 1)) * (i + 1)
             coords[k] = [x_val, y_val]
 
-    # 3. 선수 그리기
-    x_list, y_list, text_list = [], [], []
+    # 3. 선수 점 찍기
+    x_final, y_final, label_final = [], [], []
     
-    for p_id, info in positions_data.items():
-        if "|" in str(info):
-            name, role = str(info).split("|")
-            if name != "미배정" and p_id in coords:
-                x_list.append(coords[p_id][0])
-                y_list.append(coords[p_id][1])
-                text_list.append(f"<b>{name}</b><br>{role}")
+    for p_id, loc in coords.items():
+        if p_id in normalized_data:
+            info = normalized_data[p_id]
+            if "|" in str(info):
+                name, role = str(info).split("|")
+                if name.strip() and name != "미배정":
+                    x_final.append(loc[0])
+                    y_final.append(loc[1])
+                    label_final.append(f"<b>{name}</b><br>{role}")
 
-    if x_list:
+    # 데이터가 있을 때만 Scatter 추가
+    if x_final:
         fig.add_trace(go.Scatter(
-            x=x_list, y=y_list,
+            x=x_final, y=y_final,
             mode="markers+text",
             marker=dict(size=25, color="white", line=dict(width=3, color="navy")),
-            text=text_list,
+            text=label_final,
             textposition="top center",
             textfont=dict(color="white", size=14, family="Arial Black"),
             showlegend=False
         ))
     else:
-        # 데이터가 비어있을 때
-        fig.add_annotation(x=50, y=50, text="선수를 배치하고<br>[저장] 버튼을 눌러주세요", 
+        # 데이터가 없을 때의 경고창
+        fig.add_annotation(x=50, y=50, text="데이터가 비어있거나<br>형식이 맞지 않습니다", 
                            showarrow=False, font=dict(color="white", size=16))
 
     fig.update_layout(
         width=450, height=650,
-        xaxis={"showgrid": False, "zeroline": False, "showticklabels": False, "range": [-10, 110]},
-        yaxis={"showgrid": False, "zeroline": False, "showticklabels": False, "range": [-10, 110]},
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
         margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)"
     )
     return fig
 
@@ -228,13 +238,3 @@ with tab2:
     # 시각화 전술판 출력
     if pos_data:
         st.divider()
-        st.divider()
-        # 관리자는 실시간 메모리 데이터(pos_data), 부원은 서버 데이터(saved_positions)
-        display_data = pos_data if is_admin else saved_positions
-    
-        # [강력 디버깅] 데이터가 있는데 안 나온다면 이 텍스트가 힌트가 됩니다.
-        if not display_data or len(display_data) == 0:
-            st.error("데이터를 불러오지 못했습니다. [저장]을 먼저 해주세요.")
-        else:
-            st.plotly_chart(draw_pitch(display_data), use_container_width=False)
-        st.plotly_chart(draw_pitch(pos_data), use_container_width=True)
