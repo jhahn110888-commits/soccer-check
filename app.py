@@ -3,7 +3,7 @@ import pandas as pd
 import requests
 import datetime
 import json
-import 
+import plotly.graph_objects as go
 
 # --- 1. 기본 설정 ---
 st.set_page_config(page_title="D'fit 통합 관리", layout="centered", page_icon="⚽")
