@@ -19,7 +19,7 @@ is_admin = (user_pw == ADMIN_PW)
 with st.sidebar:
     if is_admin:
         st.success("✅ 관리자 모드 활성")
-        if st.button("로그아웃"):
+        if st.button("로그아웃 (캐시 초기화)"):
             st.query_params.clear()
             st.rerun()
     else:
@@ -59,77 +59,67 @@ match_all_df = attend_df[attend_df['일정'] == selected_match].reset_index(drop
 confirmed_df = match_all_df.head(MAX_CAPACITY)
 waiting_df = match_all_df.tail(max(0, len(match_all_df) - MAX_CAPACITY))
 
-# --- 3. 세로형 전술 보드 시각화 함수 ---
+# --- 3. 세로형 전술 보드 시각화 ---
 def draw_pitch(positions_data):
-    # 데이터가 문자열이면 딕셔너리로 변환
     if isinstance(positions_data, str):
-        try:
-            positions_data = json.loads(positions_data)
-        except:
-            return go.Figure().add_annotation(text="데이터 형식 오류", showarrow=False)
+        try: positions_data = json.loads(positions_data)
+        except: return go.Figure()
 
     fig = go.Figure()
     
-    # 경기장 배경 (세로형)
+    # 경기장 (세로형)
     fig.add_shape(type="rect", x0=0, y0=0, x1=100, y1=100, fillcolor="seagreen", line_color="white", line_width=2)
-    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2) # 중앙선
-    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2) # 센터서클
-    
-    # 골 박스 (하단/상단)
+    fig.add_shape(type="line", x0=0, y0=50, x1=100, y1=50, line_color="white", line_width=2)
+    fig.add_shape(type="circle", x0=35, y0=40, x1=65, y1=60, line_color="white", line_width=2)
     fig.add_shape(type="rect", x0=20, y0=0, x1=80, y1=12, line_color="white")
     fig.add_shape(type="rect", x0=20, y0=88, x1=80, y1=100, line_color="white")
 
-    # [수정] 좌표 설정 (보내주신 데이터 키값 패턴 완벽 분석)
+    # 패턴 매칭으로 좌표 배분 (키값 대소문자 무시)
     coords = {}
-    norm_data = {str(k).lower(): v for k, v in positions_data.items()}
-    
-    coords['gk'] = [50, 7]
-    for prefix, y_val in [('df', 28), ('mf', 53), ('fw', 78)]:
-        p_keys = sorted([k for k in norm_data.keys() if prefix in k])
-        for i, k in enumerate(p_keys):
-            x_val = (100 / (len(p_keys) + 1)) * (i + 1)
-            coords[k] = [x_val, y_val]
+    gk_keys = [k for k in positions_data.keys() if 'gk' in str(k).lower()]
+    df_keys = sorted([k for k in positions_data.keys() if 'df' in str(k).lower()])
+    mf_keys = sorted([k for k in positions_data.keys() if 'mf' in str(k).lower()])
+    fw_keys = sorted([k for k in positions_data.keys() if 'fw' in str(k).lower()])
 
-    # 선수 점 찍기
-    x_f, y_f, labels = [], [], []
+    if gk_keys: coords[gk_keys[0]] = [50, 7]
+    for i, k in enumerate(df_keys): coords[k] = [(100 / (len(df_keys) + 1)) * (i + 1), 28]
+    for i, k in enumerate(mf_keys): coords[k] = [(100 / (len(mf_keys) + 1)) * (i + 1), 53]
+    for i, k in enumerate(fw_keys): coords[k] = [(100 / (len(fw_keys) + 1)) * (i + 1), 78]
+
+    x_c, y_c, labels = [], [], []
     for p_id, loc in coords.items():
-        if p_id in norm_data:
-            info = norm_data[p_id]
-            if "|" in str(info):
-                name, role = str(info).split("|")
-                if name.strip() and name != "미배정":
-                    x_f.append(loc[0])
-                    y_f.append(loc[1])
-                    labels.append(f"<b>{name}</b><br>{role}")
+        info = positions_data[p_id]
+        if "|" in str(info):
+            name, role = str(info).split("|")
+            if name.strip() and name != "미배정":
+                x_c.append(loc[0])
+                y_c.append(loc[1])
+                labels.append(f"<b>{name}</b><br>{role}")
 
-    if x_f:
+    if x_c:
         fig.add_trace(go.Scatter(
-            x=x_f, y=y_f, mode="markers+text",
+            x=x_c, y=y_c, mode="markers+text",
             marker=dict(size=25, color="white", line=dict(width=3, color="navy")),
             text=labels, textposition="top center",
-            textfont=dict(color="white", size=14, family="Arial Black"), showlegend=False
+            textfont=dict(color="white", size=14), showlegend=False
         ))
     else:
-        fig.add_annotation(x=50, y=50, text="표시할 선수가 없습니다", showarrow=False, font=dict(color="white", size=16))
+        fig.add_annotation(x=50, y=50, text="라인업을 저장해주세요", showarrow=False, font=dict(color="white", size=16))
 
-    fig.update_layout(
-        width=450, height=650,
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
-        margin=dict(l=10, r=10, t=10, b=10),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)"
-    )
+    fig.update_layout(width=450, height=650, margin=dict(l=10, r=10, t=10, b=10),
+                      xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, range=[-10, 110]),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
 
 # --- 4. 탭 구성 ---
 tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
 
 with tab1:
-    # (탭 1 로직 - 동일)
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("🙋 신청")
-        with st.form("add"):
+        with st.form("add", clear_on_submit=True):
             name = st.text_input("이름")
             if st.form_submit_button("참석"):
                 now = datetime.datetime.now().strftime("%H:%M")
@@ -139,7 +129,7 @@ with tab1:
     with col2:
         st.subheader("🚫 취소")
         if is_admin:
-            with st.form("del"):
+            with st.form("del", clear_on_submit=True):
                 d_name = st.text_input("이름")
                 if st.form_submit_button("취소"):
                     requests.post(API_URL, json={"action": "delete", "date": selected_match, "name": d_name})
@@ -166,7 +156,6 @@ with tab2:
     saved_positions = {}
     saved_formation = "4-3-3"
     
-    # [수정] 데이터 매칭 로직 강화
     for row in lineup_raw:
         if len(row) >= 3:
             if str(row[0]).strip() == selected_match.strip() and str(row[1]).strip() == q_choice.strip():
@@ -182,26 +171,28 @@ with tab2:
         st.subheader(f"🏟️ {q_choice} 포메이션: {saved_formation}")
         formation = saved_formation
 
-    try:
-        df_n, mf_n, fw_n = map(int, formation.split('-'))
-    except:
-        df_n, mf_n, fw_n = 4, 3, 3
+    try: df_n, mf_n, fw_n = map(int, formation.split('-'))
+    except: df_n, mf_n, fw_n = 4, 3, 3
 
     pos_data = {}
     if is_admin:
+        # [핵심 수정] UI 잠김 방지를 위해 가장 심플하고 안전한 로직으로 교체
         def q_role_box(label, p_id, options):
             c1, c2 = st.columns([2, 1])
-            prefix = f"{selected_match}_{q_choice}"
-            name_key = f"{prefix}_{p_id}_name"
-            taken = [v for k, v in st.session_state.items() if prefix in k and "_name" in k and k != name_key and v != "미배정"]
-            available = ["미배정"] + [p for p in confirmed_df['이름'].tolist() if p not in taken]
+            
+            # 서버에서 데이터 읽어오기
             saved_val = saved_positions.get(p_id, "미배정|")
             s_name, s_role = saved_val.split('|') if '|' in saved_val else (saved_val, "")
-            if name_key not in st.session_state: st.session_state[name_key] = s_name
-            display_list = available.copy()
-            if st.session_state[name_key] not in display_list: display_list.append(st.session_state[name_key])
-            with c1: sel_n = st.selectbox(label, display_list, key=name_key)
-            with c2: sel_r = st.selectbox(label, options, key=f"{prefix}_{p_id}_role", index=options.index(s_role) if s_role in options else 0)
+            
+            players = ["미배정"] + confirmed_df['이름'].tolist()
+            if s_name not in players: players.append(s_name)
+                
+            n_idx = players.index(s_name)
+            r_idx = options.index(s_role) if s_role in options else 0
+            
+            with c1: sel_n = st.selectbox(label, players, index=n_idx, key=f"{selected_match}_{q_choice}_{p_id}_n")
+            with c2: sel_r = st.selectbox("역할", options, index=r_idx, key=f"{selected_match}_{q_choice}_{p_id}_r")
+            
             return f"{sel_n}|{sel_r}"
 
         st.subheader("GK")
@@ -218,11 +209,14 @@ with tab2:
             st.cache_data.clear()
             st.rerun()
     else:
-        # [중요] 부원 모드일 때 저장된 데이터를 pos_data에 할당
         pos_data = saved_positions
 
-    # [중요] 시각화 호출 - pos_data가 존재하거나 saved_positions가 있을 때 실행
-    if pos_data:
-        st.divider()
+    st.divider()
+    
+    # 🚨 진짜 안 나올 때 원인을 파악하기 위한 디버그 패널 
+    with st.expander("🛠️ (확인용) 현재 그림판에 들어가는 데이터"):
+        st.write("서버에서 받은 데이터:", saved_positions)
+        st.write("그림으로 그릴 데이터:", pos_data)
         
+    if pos_data:
         st.plotly_chart(draw_pitch(pos_data), use_container_width=False)
