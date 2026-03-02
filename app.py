@@ -28,16 +28,15 @@ with st.sidebar:
 # --- 2. API 및 데이터 로드 ---
 API_URL = "https://script.google.com/macros/s/AKfycbyaZjCt2UAxIvk3xaPKgF2LrS7Su23kaco26KG3AwdcZ2hX8bLHYfvG_1zIVP6S5fK6nA/exec"
 
-MATCH_CONFIG = {
-    "2026-02-27 (금) 달성 스포츠 파크": 21,    
+MATCH_CONFIG = {    
     "2026-03-04 (수) 달성 스포츠 파크": 21,    
-    "2026-03-07 (토) 달성 스포츠 파크": 21,
+    "2026-03-07 (토) 달성 스포츠 파크": 40,
     "2026-03-11 (수) 교내 풋살": 14,
     "2026-03-12 (목) 달성 스포츠 파크": 40,
     "2026-03-18 (수) 교내 풋살": 14,
-    "2026-03-19 (목) 달성 스포츠 파크": 20,
+    "2026-03-19 (목) 달성 스포츠 파크": 21,
     "2026-03-25 (수) 교내 풋살": 22,
-    "2026-03-26 (목) 달성 스포츠 파크": 20
+    "2026-03-26 (목) 달성 스포츠 파크": 21
 }
 
 selected_match = st.selectbox("📅 경기 선택", list(MATCH_CONFIG.keys()))
