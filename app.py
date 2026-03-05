@@ -37,7 +37,7 @@ MATCH_CONFIG = {
     "2026-03-26 (Thu) Soccer (Match, Dalseong Stadium)": 21
 }
 
-selected_match = st.selectbox("📅 경기 선택", list(MATCH_CONFIG.keys()))
+selected_match = st.selectbox("📅 Match select", list(MATCH_CONFIG.keys()))
 MAX_CAPACITY = MATCH_CONFIG[selected_match]
 
 @st.cache_data(ttl=2)
@@ -110,25 +110,25 @@ def draw_pitch(positions_data):
     return fig
     
 # --- 4. 탭 구성 ---
-tab1, tab2 = st.tabs(["📝 신청 및 명단", "🏃 라인업"])
+tab1, tab2 = st.tabs(["📝 Application", "🏃 Lineup"])
 
 with tab1:
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("🙋 신청")
+        st.subheader("🙋 Application")
         with st.form("add", clear_on_submit=True):
-            name = st.text_input("이름")
-            if st.form_submit_button("참석"):
+            name = st.text_input("Name")
+            if st.form_submit_button("Apply"):
                 now = datetime.datetime.now().strftime("%H:%M")
                 requests.post(API_URL, json={"action": "add", "date": selected_match, "name": name, "time": now})
                 st.cache_data.clear()
                 st.rerun()
     with col2:
-        st.subheader("🚫 취소")
+        st.subheader("🚫 Cancel")
         if is_admin:
             with st.form("del", clear_on_submit=True):
-                d_name = st.text_input("이름")
-                if st.form_submit_button("취소"):
+                d_name = st.text_input("Name")
+                if st.form_submit_button("Cancle"):
                     requests.post(API_URL, json={"action": "delete", "date": selected_match, "name": d_name})
                     st.cache_data.clear()
                     st.rerun()
