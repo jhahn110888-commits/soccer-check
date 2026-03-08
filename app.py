@@ -29,7 +29,6 @@ with st.sidebar:
 API_URL = "https://script.google.com/macros/s/AKfycbyaZjCt2UAxIvk3xaPKgF2LrS7Su23kaco26KG3AwdcZ2hX8bLHYfvG_1zIVP6S5fK6nA/exec"
 
 MATCH_CONFIG = {        
-    "2026-03-11 (Wed) Futsal (E16)": 14,
     "2026-03-12 (Thu) Soccer (In-club, Dalseong Stadium)": 40,
     "2026-03-18 (Wed) Futsal (E16)": 14,
     "2026-03-19 (Thu) Soccer (Match, Dalseong Stadium)": 21,
