@@ -125,7 +125,7 @@ with tab1:
         if is_admin:
             with st.form("del", clear_on_submit=True):
                 d_name = st.text_input("Name")
-                if st.form_submit_button("Cancle"):
+                if st.form_submit_button("Cancel"):
                     requests.post(API_URL, json={"action": "delete", "date": selected_match, "name": d_name})
                     st.cache_data.clear()
                     st.rerun()
