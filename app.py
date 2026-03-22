@@ -29,9 +29,7 @@ with st.sidebar:
 API_URL = "https://script.google.com/macros/s/AKfycbyaZjCt2UAxIvk3xaPKgF2LrS7Su23kaco26KG3AwdcZ2hX8bLHYfvG_1zIVP6S5fK6nA/exec"
 
 MATCH_CONFIG = {        
-    "2026-03-19 (Thu) Soccer (Match, Dalseong Stadium)": 21,
-    "2026-03-25 (Wed) Futsal (E16)": 22,
-    "2026-03-26 (Thu) Soccer (Match, Dalseong Stadium)": 21
+    "2026-03-26 (Thu) Soccer (Match, Dalseong Stadium)": 16
 }
 
 selected_match = st.selectbox("📅 Match select", list(MATCH_CONFIG.keys()))
