@@ -114,10 +114,18 @@ with tab1:
         with st.form("add", clear_on_submit=True):
             name = st.text_input("Name")
             if st.form_submit_button("Apply"):
-                now = datetime.datetime.now().strftime("%H:%M")
-                requests.post(API_URL, json={"action": "add", "date": selected_match, "name": name, "time": now})
-                st.cache_data.clear()
-                st.rerun()
+                # 1. 공백 제거 후 이름 확인
+                clean_name = name.strip()
+                
+                if clean_name:  # 이름이 비어있지 않은 경우에만 실행
+                    now = datetime.datetime.now().strftime("%H:%M")
+                    # 서버에는 공백이 제거된 clean_name을 보냅니다.
+                    requests.post(API_URL, json={"action": "add", "date": selected_match, "name": clean_name, "time": now})
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    # 2. 공백일 경우 경고 메시지 표시
+                    st.error("이름을 입력해주세요. (공백 불가)")
     with col2:
         st.subheader("🚫 Cancel")
         if is_admin:
